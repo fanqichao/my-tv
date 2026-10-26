@@ -1,0 +1,16 @@
+# 二进制文件必须原样存储，禁止任何换行符转换（否则 .so 会损坏）
+*.so binary
+*.a binary
+*.jar binary
+*.apk binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ttf binary
+*.zip binary
+
+# 脚本保持 LF，确保在 Linux CI 上可执行
+gradlew text eol=lf
+*.sh text eol=lf
