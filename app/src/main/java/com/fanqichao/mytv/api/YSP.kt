@@ -57,7 +57,12 @@ object YSP {
     private var encryptor = Encryptor()
 
     fun init(context: Context) {
-        encryptor.init(context)
+        try {
+            encryptor.init(context)
+        } catch (t: Throwable) {
+            // 内置直播源走直连播放，不依赖该 native 库；即使加载失败也不应影响启动
+            android.util.Log.e(TAG, "native init failed", t)
+        }
         guid = getGuid()
     }
 
