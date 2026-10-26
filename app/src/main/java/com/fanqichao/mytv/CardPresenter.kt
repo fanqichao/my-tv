@@ -61,15 +61,9 @@ class CardPresenter(
 
         card.tag = tvViewModel.videoUrl.value
 
-        // 诊断：卡片底色临时标红，用于确认是否有半透明层盖在卡片上
-        card.setBackgroundColor(0xFFFF0000.toInt())
-        image.alpha = 1f
-        Log.i(
-            "CardPresenter",
-            "bind ${tvViewModel.getTV().title} cardAlpha=${card.alpha} imgAlpha=${image.alpha} " +
-                "cardBg=${card.background} imgBg=${image.background} " +
-                "parent=${card.parent?.javaClass?.simpleName} size=${widthPx}x${heightPx}"
-        )
+        // Leanback 会给每个网格条目套一层 ShadowOverlayContainer，
+        // 它默认带一层暗色遮罩，会让台标看起来灰蒙蒙的，这里关掉
+        disableShadowOverlay(card)
 
         // 焦点框画在台标自身上，未选中时完全透明
         val border = GradientDrawable().apply {
@@ -83,10 +77,42 @@ class CardPresenter(
         card.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
         applyFocus(card.hasFocus())
 
-        // 直接加载原图
+        // 加载原图，强制 ARGB_8888：台标图带透明通道，
+        // 默认解码会丢 alpha，透明底变成不透明灰块
         Glide.with(card.context)
             .load(tvViewModel.getTV().logo)
+            .format(com.bumptech.glide.load.DecodeFormat.PREFER_ARGB_8888)
             .into(image)
+    }
+
+    /**
+     * Leanback 的 GridPresenter 会把每个条目包进 ShadowOverlayContainer，
+     * 上面带一层半透明暗色（阴影/聚焦调暗），台标就会被压成灰蒙蒙的一块。
+     * 用反射关掉，避免不同 leanback 版本 API 差异导致编译失败。
+     */
+    private fun disableShadowOverlay(card: android.view.View) {
+        val parent = card.parent ?: return
+        if (parent.javaClass.simpleName != "ShadowOverlayContainer") return
+        try {
+            parent.javaClass
+                .getMethod("showShadow", java.lang.Boolean.TYPE)
+                .invoke(parent, false)
+        } catch (t: Throwable) {
+            Log.w("CardPresenter", "showShadow not available: ${t.message}")
+        }
+        try {
+            parent.javaClass
+                .getMethod("setShadowFocusLevel", java.lang.Float.TYPE)
+                .invoke(parent, 0f)
+        } catch (t: Throwable) {
+            Log.w("CardPresenter", "setShadowFocusLevel not available: ${t.message}")
+        }
+        (parent as? android.view.View)?.let {
+            it.setBackgroundColor(Color.TRANSPARENT)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                it.foreground = null
+            }
+        }
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {
