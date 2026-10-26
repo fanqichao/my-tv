@@ -31,6 +31,8 @@ class MainFragment : VerticalGridSupportFragment() {
 
     private var rowsAdapter: ArrayObjectAdapter? = null
 
+    private var cardPresenter: CardPresenter? = null
+
     var tvListViewModel = TVListViewModel()
 
     private var lastVideoUrl = ""
@@ -121,12 +123,13 @@ class MainFragment : VerticalGridSupportFragment() {
         // 面板只占屏幕左侧一条，卡片宽度按面板宽度自适应，避免超出被裁切
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
-        val cardPresenter = CardPresenter(context!!).apply {
+        val presenter = CardPresenter(context!!).apply {
             // 台标不需要占满面板：限制在 84dp 内（120dp 基础上再缩小 30%）
             cardWidth = (panelWidthDp - 12).coerceIn(48, 84)
         }
+        cardPresenter = presenter
 
-        rowsAdapter = ArrayObjectAdapter(cardPresenter)
+        rowsAdapter = ArrayObjectAdapter(presenter)
 
         // 展平所有分组：分组顺序保留，频道按全局序号竖排
         var idx = 0
@@ -235,6 +238,8 @@ class MainFragment : VerticalGridSupportFragment() {
         ) {
             if (item is TVViewModel) {
                 tvListViewModel.setItemPositionCurrent(item.getRowPosition())
+                // 驱动卡片高亮（卡片自身拿不到焦点状态）
+                cardPresenter?.setSelected(item)
                 (activity as? MainActivity)?.mainActive()
             }
         }

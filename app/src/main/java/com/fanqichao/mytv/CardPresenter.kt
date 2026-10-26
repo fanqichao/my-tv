@@ -30,6 +30,18 @@ class CardPresenter(
     /** 卡片宽度（dp），由面板宽度决定 */
     var cardWidth: Int = CARD_WIDTH
 
+    /** 当前选中项：Leanback 的焦点其实落在 ShadowOverlayContainer 上，
+     *  卡片自己拿不到 focus 状态，所以由 Fragment 的选中回调来驱动高亮 */
+    private var selectedItem: TVViewModel? = null
+
+    private val boundViews = HashMap<TVViewModel, android.view.View>()
+
+    fun setSelected(item: TVViewModel?) {
+        if (selectedItem === item) return
+        selectedItem = item
+        boundViews.forEach { (tv, view) -> view.isActivated = tv === item }
+    }
+
     private val density: Float get() = context.resources.displayMetrics.density
 
     private val widthPx: Int get() = (cardWidth * density).toInt().coerceAtLeast(1)
@@ -65,6 +77,8 @@ class CardPresenter(
         }
 
         card.tag = tvViewModel.videoUrl.value
+        boundViews[tvViewModel] = card
+        card.isActivated = tvViewModel === selectedItem
 
         // Leanback 给每个网格条目套了 ShadowOverlayContainer，
         // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
@@ -99,6 +113,7 @@ class CardPresenter(
             setLayerInset(1, inset, inset, inset, inset)
         }
         return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_activated), border)
             addState(intArrayOf(android.R.attr.state_focused), border)
             addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
         }
@@ -131,6 +146,7 @@ class CardPresenter(
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {
         val card = viewHolder.view as? FrameLayout ?: return
+        boundViews.entries.removeAll { it.value === card }
         (card.getChildAt(0) as? ImageView)?.setImageDrawable(null)
     }
 
