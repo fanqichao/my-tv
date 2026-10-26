@@ -35,7 +35,6 @@ class CardPresenter(
     fun setSelected(item: TVViewModel?) {
         if (selectedItem === item) return
         selectedItem = item
-        Log.i("CardPresenter", "setSelected ${item?.getTV()?.title} bound=${boundViews.size}")
         // 放大/取消放大都走这里：不依赖 Leanback 的焦点事件
         //（快速滚动时新条目先拿到焦点后绑定，焦点事件会丢，Leanback 的放大就不生效了）
         boundViews.forEach { (tv, view) -> applySelectionState(view, tv === item, animate = true) }
@@ -48,7 +47,6 @@ class CardPresenter(
     private fun applySelectionState(card: View, selected: Boolean, animate: Boolean) {
         val targetScale = if (selected) SELECTED_SCALE else 1f
         val targetZ = if (selected) selectedElevationPx else 0f
-        Log.i("CardPresenter", "scale ${targetScale} animate=$animate")
         if (animate) {
             card.animate()
                 .scaleX(targetScale)
@@ -81,6 +79,11 @@ class CardPresenter(
             pivotX = 0f
             pivotY = heightPx / 2f
         }
+        card.addOnLayoutChangeListener { v, l, _, _, _, _, _, _, _ ->
+            // 条目会被 Leanback 水平居中：每次布局后把自身的左偏移抵消掉，让整列台标贴住屏幕左边缘
+            val target = -l.toFloat()
+            if (v.translationX != target) v.translationX = target
+        }
         val image = ImageView(parent.context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
             setBackgroundColor(Color.TRANSPARENT)
@@ -104,9 +107,6 @@ class CardPresenter(
         }
 
         card.tag = tvViewModel.videoUrl.value
-        // 条目会被 Leanback 水平居中，这里把每条卡片自身的左偏移抵消掉，让整列台标贴住屏幕左边缘
-        card.post { card.translationX = -card.left.toFloat() }
-        // 放大以左边缘为枢轴：卡片贴左，放大时向右长，不会把台标挤出屏幕
         card.pivotX = 0f
         card.pivotY = heightPx / 2f
         boundViews[tvViewModel] = card
