@@ -66,6 +66,9 @@ class CardPresenter(
             Glide.with(viewHolder.view.context)
                 .load(tvViewModel.getTV().logo)
                 .centerInside()
+                // 台标自带白/灰渐变底，加载时抠掉，避免在画面上留灰块
+                // 注意顺序：centerInside() 会覆盖之前的 transformation，抠图必须放最后
+                .transform(TransparentLogoTransform())
                 .into(imageView)
         }
     }
