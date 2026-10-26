@@ -1,7 +1,8 @@
 <resources>
 
     <style name="CustomImageCardViewStyle" parent="Widget.Leanback.ImageCardViewStyle">
-        <item name="lbImageCardViewType">Title|Content</item>
+        <!-- 0 = 只显示图片：不渲染标题/内容信息区，避免台标下面出现灰底文字条 -->
+        <item name="lbImageCardViewType">0</item>
     </style>
 
     <style name="CustomImageCardTheme" parent="Theme.Leanback">

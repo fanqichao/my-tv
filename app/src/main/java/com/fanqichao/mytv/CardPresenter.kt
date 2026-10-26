@@ -2,6 +2,7 @@ package com.fanqichao.mytv
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.ContextThemeWrapper
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -10,6 +11,10 @@ import androidx.leanback.widget.Presenter
 import com.bumptech.glide.Glide
 import com.fanqichao.mytv.models.TVViewModel
 
+/**
+ * 频道卡片：只显示台标，卡片本体、信息区、台标底色全部透明，
+ * 直接叠在右侧视频画面上；焦点态用白色描边 + Leanback 自带放大来区分。
+ */
 class CardPresenter(
     private val context: Context,
 ) : Presenter() {
@@ -18,11 +23,27 @@ class CardPresenter(
     var cardWidth: Int = CARD_WIDTH
 
     override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
-        val cardView = object :
-            ImageCardView(ContextThemeWrapper(parent.context, R.style.CustomImageCardTheme)) {}
+        val cardView = ImageCardView(
+            ContextThemeWrapper(parent.context, R.style.CustomImageCardTheme)
+        )
 
         cardView.isFocusable = true
         cardView.isFocusableInTouchMode = true
+        // 白色卡片底 + 灰色信息区底都去掉，否则透明背景上会露出色块
+        cardView.setBackgroundColor(Color.TRANSPARENT)
+        cardView.setInfoAreaBackgroundColor(Color.TRANSPARENT)
+
+        // 选中项描边：2dp 白框，暗色画面下也能看清焦点在哪
+        val density = parent.resources.displayMetrics.density
+        val focusBorder = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
+            cornerRadius = 6 * density
+        }
+        cardView.setOnFocusChangeListener { view, hasFocus ->
+            view.background = if (hasFocus) focusBorder else null
+        }
+
         return ViewHolder(cardView)
     }
 
@@ -30,40 +51,19 @@ class CardPresenter(
         val tvViewModel = item as TVViewModel
         val cardView = viewHolder.view as ImageCardView
 
-        cardView.titleText = tvViewModel.getTV().title
-        val cardHeight = (cardWidth * CARD_HEIGHT / CARD_WIDTH).coerceAtLeast(48)
+        // 去掉信息区后卡片可以压扁，一屏能多显示几个台
+        val cardHeight = (cardWidth * CARD_HEIGHT / CARD_WIDTH).coerceAtLeast(32)
         cardView.setMainImageDimensions(cardWidth, cardHeight)
         cardView.tag = tvViewModel.videoUrl.value
+        cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE)
 
-        cardView.mainImageView?.let {
+        cardView.mainImageView?.let { imageView ->
+            // 部分主题会给图片区一层默认底色，这里一并透明
+            imageView.setBackgroundColor(Color.TRANSPARENT)
             Glide.with(viewHolder.view.context)
                 .load(tvViewModel.getTV().logo)
                 .centerInside()
-                .into(it)
-        }
-
-        cardView.setBackgroundColor(Color.WHITE)
-        cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE)
-
-//        cardView.setOnFocusChangeListener { v, hasFocus ->
-//            run {
-//                if (hasFocus) {
-//                    if (v != null) {
-//                        (v as ImageCardView).setInfoAreaBackgroundColor(context.resources.getColor(R.color.focus))
-//                    }
-//                } else {
-//                    if (v != null) {
-//                        (v as ImageCardView).setInfoAreaBackgroundColor(context.resources.getColor(R.color.ic_launcher_background))
-//                    }
-//                }
-//            }
-//        }
-
-        val epg = tvViewModel.epg.value?.filter { it.beginTime < Utils.getDateTimestamp() }
-        if (!epg.isNullOrEmpty()) {
-            cardView.contentText = epg.last().title
-        } else {
-            cardView.contentText = ""
+                .into(imageView)
         }
     }
 
@@ -73,8 +73,7 @@ class CardPresenter(
     }
 
     companion object {
-        private const val TAG = "CardPresenter"
         private const val CARD_WIDTH = 300
-        private const val CARD_HEIGHT = 101
+        private const val CARD_HEIGHT = 68
     }
 }
