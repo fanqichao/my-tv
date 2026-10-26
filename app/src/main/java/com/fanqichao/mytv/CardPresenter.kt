@@ -14,14 +14,23 @@ import com.fanqichao.mytv.models.TVViewModel
 
 /**
  * 频道卡片：只显示台标，卡片本体、信息区、台标底色全部透明，
- * 直接叠在右侧视频画面上；焦点态用白色描边 + Leanback 自带放大来区分。
+ * 直接叠在右侧视频画面上。
+ *
+ * 台标按原图比例（507x338 ≈ 3:2）显示，白色焦点框画在台标自身上，
+ * 不再是「一整列宽的大方格」。
  */
 class CardPresenter(
     private val context: Context,
 ) : Presenter() {
 
-    // 卡片宽度（dp），由面板宽度决定，宽度变化时高度按原比例缩放
+    /** 卡片宽度（dp），由面板宽度决定 */
     var cardWidth: Int = CARD_WIDTH
+
+    private val density: Float get() = context.resources.displayMetrics.density
+
+    private val widthPx: Int get() = (cardWidth * density).toInt().coerceAtLeast(1)
+
+    private val heightPx: Int get() = (widthPx / LOGO_ASPECT).toInt().coerceAtLeast(1)
 
     override fun onCreateViewHolder(parent: ViewGroup): ViewHolder {
         val cardView = ImageCardView(
@@ -36,17 +45,6 @@ class CardPresenter(
         // 只留台标：整块信息区（标题/节目名）直接隐藏，不再占高度
         cardView.findViewById<View>(androidx.leanback.R.id.info_field)?.visibility = View.GONE
 
-        // 选中项描边：2dp 白框，暗色画面下也能看清焦点在哪
-        val density = parent.resources.displayMetrics.density
-        val focusBorder = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
-            cornerRadius = 6 * density
-        }
-        cardView.setOnFocusChangeListener { view, hasFocus ->
-            view.background = if (hasFocus) focusBorder else null
-        }
-
         return ViewHolder(cardView)
     }
 
@@ -54,15 +52,28 @@ class CardPresenter(
         val tvViewModel = item as TVViewModel
         val cardView = viewHolder.view as ImageCardView
 
-        // 去掉信息区后卡片可以压扁，一屏能多显示几个台
-        val cardHeight = (cardWidth * CARD_HEIGHT / CARD_WIDTH).coerceAtLeast(32)
-        cardView.setMainImageDimensions(cardWidth, cardHeight)
+        // 注意：setMainImageDimensions 收的是 px，cardWidth 是 dp，必须换算，
+        // 否则高密度屏上台标只按 dp 数值这么大，四周会空出一大圈
+        cardView.setMainImageDimensions(widthPx, heightPx)
         cardView.tag = tvViewModel.videoUrl.value
         cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE)
 
         cardView.mainImageView?.let { imageView ->
             // 部分主题会给图片区一层默认底色，这里一并透明
             imageView.setBackgroundColor(Color.TRANSPARENT)
+
+            // 焦点框画在台标上，尺寸正好等于台标，不会出现比图大一圈的方格
+            val border = GradientDrawable().apply {
+                setColor(Color.TRANSPARENT)
+                setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
+                cornerRadius = 4 * density
+            }
+            val applyFocus = { focused: Boolean ->
+                imageView.background = if (focused) border else null
+            }
+            cardView.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
+            applyFocus(cardView.hasFocus())
+
             Glide.with(viewHolder.view.context)
                 .load(tvViewModel.getTV().logo)
                 .centerInside()
@@ -79,7 +90,9 @@ class CardPresenter(
     }
 
     companion object {
-        private const val CARD_WIDTH = 300
-        private const val CARD_HEIGHT = 68
+        private const val CARD_WIDTH = 110
+
+        // 台标原图 507x338，约 3:2
+        private const val LOGO_ASPECT = 507f / 338f
     }
 }
