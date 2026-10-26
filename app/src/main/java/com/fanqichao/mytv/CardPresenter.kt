@@ -42,16 +42,17 @@ class CardPresenter(
         boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
     }
 
-    /** 选中态：黑色描边，未选中无任何背景 */
+    /** 选中态：黑色描边，未选中无任何描边 */
     private fun applySelectionState(card: View, selected: Boolean) {
-        card.background = if (selected) selectedBorder else null
+        // 必须用 foreground：background 会被铺满的台标图盖住，看不到边框
+        card.foreground = if (selected) selectedBorder else null
     }
 
     /** 黑色描边：透明底 + 黑框，圆角小弧度 */
     private val selectedBorder: android.graphics.drawable.GradientDrawable by lazy {
         android.graphics.drawable.GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            setStroke((2.5f * density).toInt().coerceAtLeast(2), Color.BLACK)
+            setStroke((3f * density).toInt().coerceAtLeast(3), Color.BLACK)
             cornerRadius = 4f * density
         }
     }
