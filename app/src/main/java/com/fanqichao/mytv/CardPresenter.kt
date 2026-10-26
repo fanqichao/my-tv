@@ -128,9 +128,9 @@ class CardPresenter(
         val gridView = grid ?: return
         val loc = IntArray(2)
         card.getLocationInWindow(loc)
-        // 已经把左边距抵消过了就不再动，避免来回抖动
-        if (loc[0] > 0 && gridView.translationX == 0f) {
-            gridView.translationX = -loc[0].toFloat()
+        // 自校正：按当前实际位置微调，误差超过 2px 才动，避免来回抖动
+        if (kotlin.math.abs(loc[0]) >= 2) {
+            gridView.translationX -= loc[0].toFloat()
         }
     }
 
