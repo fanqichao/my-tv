@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.ContextThemeWrapper
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.leanback.widget.ImageCardView
@@ -32,6 +33,8 @@ class CardPresenter(
         // 白色卡片底 + 灰色信息区底都去掉，否则透明背景上会露出色块
         cardView.setBackgroundColor(Color.TRANSPARENT)
         cardView.setInfoAreaBackgroundColor(Color.TRANSPARENT)
+        // 只留台标：整块信息区（标题/节目名）直接隐藏，不再占高度
+        cardView.findViewById<View>(androidx.leanback.R.id.info_field)?.visibility = View.GONE
 
         // 选中项描边：2dp 白框，暗色画面下也能看清焦点在哪
         val density = parent.resources.displayMetrics.density
