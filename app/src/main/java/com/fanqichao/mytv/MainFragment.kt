@@ -44,7 +44,10 @@ class MainFragment : VerticalGridSupportFragment() {
         super.onCreate(savedInstanceState)
 
         // 竖向网格：单列，上下键即垂直换频道
-        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE)
+        // 第二个参数 false = 关闭 focus dimmer。
+        // Leanback 默认会把「未选中」的条目压暗（画一层灰色遮罩），
+        // 白底台标就会变成灰蒙蒙的灰底，这里必须关掉，只保留放大效果
+        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE, false)
         gridPresenter.numberOfColumns = 1
         gridPresenter.shadowEnabled = false
         setGridPresenter(gridPresenter)
@@ -63,10 +66,11 @@ class MainFragment : VerticalGridSupportFragment() {
         // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台；
         // 左右内边距清零，让卡片贴靠面板左侧
         view?.post {
-            findGridView(view)?.let { grid ->
-                grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
-                grid.setPadding(0, grid.paddingTop, 0, grid.paddingBottom)
-            }
+            val grid = findGridView(view) ?: return@post
+            grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+            grid.setPadding(0, grid.paddingTop, 0, grid.paddingBottom)
+            // 网格/条目自带一点左内边距，把整列图标平移到屏幕最左侧，做到真正贴边
+            grid.post { alignGridToLeftEdge(grid) }
         }
 
         setupEventListeners()
@@ -355,6 +359,31 @@ class MainFragment : VerticalGridSupportFragment() {
             }
         }
         return null
+    }
+
+    /**
+     * 把整列图标贴到屏幕最左边。
+     * 网格自身或条目容器会带一点内边距/偏移，量出第一个条目的实际左边距，
+     * 再用 translationX 抵消掉（面板收起时不要动）。
+     */
+    private fun alignGridToLeftEdge(grid: androidx.leanback.widget.BaseGridView) {
+        if (grid.childCount == 0) return
+        // 选中的条目被放大，位置会略偏，优先取一个未放大的条目做基准
+        var picked: View? = null
+        for (i in 0 until grid.childCount) {
+            val child = grid.getChildAt(i)
+            if (child.scaleX == 1f) {
+                picked = child
+                break
+            }
+        }
+        val ref: View = picked ?: (grid.getChildAt(0) ?: return)
+        val itemLoc = IntArray(2)
+        ref.getLocationInWindow(itemLoc)
+        // 条目左边到屏幕左边的距离，直接抵消掉
+        if (itemLoc[0] > 0) {
+            grid.translationX = -itemLoc[0].toFloat()
+        }
     }
 
     companion object {

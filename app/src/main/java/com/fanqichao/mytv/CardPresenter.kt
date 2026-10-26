@@ -34,7 +34,9 @@ class CardPresenter(
     fun setSelected(item: TVViewModel?) {
         if (selectedItem === item) return
         selectedItem = item
-        boundViews.forEach { (tv, view) -> view.isActivated = tv === item }
+        // 兜底：某些 leanback 版本会给未选中项重新压暗（灰色蒙版），
+        // 这里在选中变化后再清一次，保证只有放大、没有变灰
+        boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
     }
 
     private val density: Float get() = context.resources.displayMetrics.density
@@ -48,6 +50,10 @@ class CardPresenter(
             isFocusable = true
             isFocusableInTouchMode = true
             background = null
+            clipChildren = false
+            // 放大时以台标自身中心为枢轴，否则会按整列宽度居中放大，出现左右偏移
+            pivotX = widthPx / 2f
+            pivotY = heightPx / 2f
         }
         val image = ImageView(parent.context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -72,8 +78,9 @@ class CardPresenter(
         }
 
         card.tag = tvViewModel.videoUrl.value
+        card.pivotX = widthPx / 2f
+        card.pivotY = heightPx / 2f
         boundViews[tvViewModel] = card
-        card.isActivated = tvViewModel === selectedItem
 
         // Leanback 给每个网格条目套了 ShadowOverlayContainer，
         // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
@@ -106,10 +113,12 @@ class CardPresenter(
         }
         (parent as? View)?.let {
             it.setBackgroundColor(Color.TRANSPARENT)
+            it.alpha = 1f   // 部分版本用 alpha 做压暗，一并恢复到不透明
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 it.foreground = null
             }
         }
+        card.alpha = 1f
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {
