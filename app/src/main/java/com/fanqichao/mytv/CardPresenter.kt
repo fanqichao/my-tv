@@ -93,19 +93,20 @@ class CardPresenter(
     private fun disableShadowOverlay(card: android.view.View) {
         val parent = card.parent ?: return
         if (parent.javaClass.simpleName != "ShadowOverlayContainer") return
-        try {
-            parent.javaClass
-                .getMethod("showShadow", java.lang.Boolean.TYPE)
-                .invoke(parent, false)
-        } catch (t: Throwable) {
-            Log.w("CardPresenter", "showShadow not available: ${t.message}")
-        }
-        try {
-            parent.javaClass
-                .getMethod("setShadowFocusLevel", java.lang.Float.TYPE)
-                .invoke(parent, 0f)
-        } catch (t: Throwable) {
-            Log.w("CardPresenter", "setShadowFocusLevel not available: ${t.message}")
+        val cls = parent.javaClass
+        Log.i(
+            "CardPresenter",
+            "ShadowOverlayContainer methods: " +
+                cls.methods.joinToString { it.name + "(" + it.parameterTypes.joinToString { p -> p.simpleName } + ")" }
+        )
+        // 把可能存在的半透明遮罩关掉
+        for (name in listOf("setOverlayColor", "setShadowColor")) {
+            try {
+                cls.getMethod(name, Integer.TYPE).invoke(parent, Color.TRANSPARENT)
+                Log.i("CardPresenter", "$name set to transparent")
+            } catch (t: Throwable) {
+                Log.w("CardPresenter", "$name not available")
+            }
         }
         (parent as? android.view.View)?.let {
             it.setBackgroundColor(Color.TRANSPARENT)
