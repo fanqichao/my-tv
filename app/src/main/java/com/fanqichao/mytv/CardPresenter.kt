@@ -43,7 +43,7 @@ class CardPresenter(
         cardView.setBackgroundColor(Color.TRANSPARENT)
         cardView.setInfoAreaBackgroundColor(Color.TRANSPARENT)
         // 去掉卡片默认内边距，否则台标四周会多出一圈空白，看着像大方格
-        cardView.setContentPadding(0, 0, 0, 0)
+        cardView.setPadding(0, 0, 0, 0)
         // 只留台标：整块信息区（标题/节目名）直接隐藏，不再占高度
         cardView.findViewById<View>(androidx.leanback.R.id.info_field)?.visibility = View.GONE
 
