@@ -69,7 +69,9 @@ class MainFragment : VerticalGridSupportFragment() {
         view?.post {
             val grid = findGridView(view) ?: return@post
             grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
-            grid.setPadding(0, grid.paddingTop, 0, grid.paddingBottom)
+            // 顶部留一点余量，避免第一条被选中放大时上边缘被屏幕裁掉
+            val topPadding = maxOf(grid.paddingTop, (6 * resources.displayMetrics.density).toInt())
+            grid.setPadding(0, topPadding, 0, grid.paddingBottom)
             // 放大的条目允许画到网格边界外，避免上下两端被裁掉
             grid.clipChildren = false
             grid.clipToPadding = false
