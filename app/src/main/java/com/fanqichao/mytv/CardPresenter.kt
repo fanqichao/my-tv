@@ -61,9 +61,9 @@ class CardPresenter(
 
         card.tag = tvViewModel.videoUrl.value
 
-        // Leanback 会给每个网格条目套一层 ShadowOverlayContainer，
-        // 它默认带一层暗色遮罩，会让台标看起来灰蒙蒙的，这里关掉
-        disableShadowOverlay(card)
+        // Leanback 给每个网格条目套了 ShadowOverlayContainer，
+        // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
+        clearShadowOverlay(card)
 
         // 焦点框画在台标自身上，未选中时完全透明
         val border = GradientDrawable().apply {
@@ -73,12 +73,14 @@ class CardPresenter(
         }
         val applyFocus = { focused: Boolean ->
             image.background = if (focused) border else null
+            // 焦点变化时 Leanback 可能重新套上遮罩，这里再清一次
+            clearShadowOverlay(card)
         }
         card.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
         applyFocus(card.hasFocus())
 
         // 加载原图，强制 ARGB_8888：台标图带透明通道，
-        // 默认解码会丢 alpha，透明底变成不透明灰块
+        // 默认解码会丢 alpha，透明底变成不透明色块
         Glide.with(card.context)
             .load(tvViewModel.getTV().logo)
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_ARGB_8888)
@@ -86,27 +88,21 @@ class CardPresenter(
     }
 
     /**
-     * Leanback 的 GridPresenter 会把每个条目包进 ShadowOverlayContainer，
-     * 上面带一层半透明暗色（阴影/聚焦调暗），台标就会被压成灰蒙蒙的一块。
-     * 用反射关掉，避免不同 leanback 版本 API 差异导致编译失败。
+     * 清掉 Leanback 给网格条目加的 ShadowOverlayContainer 遮罩。
+     *
+     * 该容器在前景画一层半透明暗色（实测把白色台标压到约 40% 亮度），
+     * 表现为「每个台标上都有层灰色蒙版」。用反射调用 setOverlayColor
+     * 设成透明，避免不同 leanback 版本 API 差异导致编译失败。
      */
-    private fun disableShadowOverlay(card: android.view.View) {
+    private fun clearShadowOverlay(card: android.view.View) {
         val parent = card.parent ?: return
         if (parent.javaClass.simpleName != "ShadowOverlayContainer") return
-        val cls = parent.javaClass
-        Log.i(
-            "CardPresenter",
-            "ShadowOverlayContainer methods: " +
-                cls.methods.joinToString { it.name + "(" + it.parameterTypes.joinToString { p -> p.simpleName } + ")" }
-        )
-        // 把可能存在的半透明遮罩关掉
-        for (name in listOf("setOverlayColor", "setShadowColor")) {
-            try {
-                cls.getMethod(name, Integer.TYPE).invoke(parent, Color.TRANSPARENT)
-                Log.i("CardPresenter", "$name set to transparent")
-            } catch (t: Throwable) {
-                Log.w("CardPresenter", "$name not available")
-            }
+        try {
+            parent.javaClass
+                .getMethod("setOverlayColor", Integer.TYPE)
+                .invoke(parent, Color.TRANSPARENT)
+        } catch (t: Throwable) {
+            Log.w("CardPresenter", "setOverlayColor unavailable: ${t.message}")
         }
         (parent as? android.view.View)?.let {
             it.setBackgroundColor(Color.TRANSPARENT)
