@@ -60,9 +60,13 @@ class MainFragment : VerticalGridSupportFragment() {
 
         loadRows()
 
-        // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台
+        // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台；
+        // 左右内边距清零，让卡片贴靠面板左侧
         view?.post {
-            findGridView(view)?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+            findGridView(view)?.let { grid ->
+                grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+                grid.setPadding(0, grid.paddingTop, 0, grid.paddingBottom)
+            }
         }
 
         setupEventListeners()
@@ -124,8 +128,8 @@ class MainFragment : VerticalGridSupportFragment() {
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
         val presenter = CardPresenter(context!!).apply {
-            // 台标不需要占满面板：限制在 84dp 内（120dp 基础上再缩小 30%）
-            cardWidth = (panelWidthDp - 12).coerceIn(48, 84)
+            // 台标不需要占满面板：84dp 再缩小 10% = 76dp
+            cardWidth = (panelWidthDp - 12).coerceIn(48, 76)
         }
         cardPresenter = presenter
 
