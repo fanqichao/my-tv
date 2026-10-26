@@ -128,8 +128,8 @@ class MainFragment : VerticalGridSupportFragment() {
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
         val presenter = CardPresenter(context!!).apply {
-            // 台标不需要占满面板：84dp 再缩小 10% = 76dp
-            cardWidth = (panelWidthDp - 12).coerceIn(48, 76)
+            // 台标不需要占满面板：76dp 再整体缩小 10% ≈ 68dp
+            cardWidth = (panelWidthDp - 12).coerceIn(44, 68)
         }
         cardPresenter = presenter
 

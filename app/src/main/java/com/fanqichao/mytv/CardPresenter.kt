@@ -2,10 +2,6 @@ package com.fanqichao.mytv
 
 import android.content.Context
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
-import android.graphics.drawable.StateListDrawable
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -20,8 +16,7 @@ import com.fanqichao.mytv.models.TVViewModel
  *
  * - 不使用 ImageCardView：它会在焦点变化时重置自己的半透明背景
  * - 卡片尺寸严格按台标原图比例（507x338 ≈ 3:2）
- * - 选中态用 StateListDrawable 按焦点状态自动换边框（黑圈 + 金圈），
- *   不依赖 OnFocusChangeListener——Leanback 的聚焦动画会把它覆盖掉
+ * - 不加任何选中边框：选中态只靠 Leanback 自带的放大（ZOOM_FACTOR_LARGE）
  */
 class CardPresenter(
     private val context: Context,
@@ -52,7 +47,7 @@ class CardPresenter(
         val card = FrameLayout(parent.context).apply {
             isFocusable = true
             isFocusableInTouchMode = true
-            background = focusBorderDrawable()
+            background = null
         }
         val image = ImageView(parent.context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -90,33 +85,6 @@ class CardPresenter(
             .load(tvViewModel.getTV().logo)
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_ARGB_8888)
             .into(image)
-    }
-
-    /**
-     * 选中态边框：外圈黑 + 内圈金。
-     * 台标自带浅色底，纯白描边会糊在一起，金色在亮/暗画面上都醒目。
-     * 用 StateListDrawable 跟随卡片的 focus 状态，避免监听被 Leanback 覆盖。
-     */
-    private fun focusBorderDrawable(): StateListDrawable {
-        val goldRing = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            setStroke((3 * density).toInt().coerceAtLeast(1), 0xFFFFC107.toInt())
-            cornerRadius = 5 * density
-        }
-        val blackRing = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            setStroke((5 * density).toInt().coerceAtLeast(1), Color.BLACK)
-            cornerRadius = 5 * density
-        }
-        val border = LayerDrawable(arrayOf(blackRing, goldRing)).apply {
-            val inset = (2 * density).toInt()
-            setLayerInset(1, inset, inset, inset, inset)
-        }
-        return StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_activated), border)
-            addState(intArrayOf(android.R.attr.state_focused), border)
-            addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
-        }
     }
 
     /**
