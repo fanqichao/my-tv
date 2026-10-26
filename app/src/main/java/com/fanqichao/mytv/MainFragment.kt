@@ -56,6 +56,13 @@ class MainFragment : VerticalGridSupportFragment() {
 
         loadRows()
 
+        // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台
+        view?.post {
+            view?.findViewById<androidx.leanback.widget.VerticalGridView>(
+                androidx.leanback.R.id.grid_view
+            )?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+        }
+
         setupEventListeners()
 
         tvListViewModel.tvListViewModel.value?.forEach { tvViewModel ->
@@ -115,8 +122,8 @@ class MainFragment : VerticalGridSupportFragment() {
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
         val cardPresenter = CardPresenter(context!!).apply {
-            // 左右各留 6dp，卡片不能超过面板宽度（原来硬编码 120dp 下限会顶出面板）
-            cardWidth = (panelWidthDp - 12).coerceIn(72, 200)
+            // 台标不需要占满面板：限制在 120dp 内，图小一点、一屏能多看几个台
+            cardWidth = (panelWidthDp - 12).coerceIn(64, 120)
         }
 
         rowsAdapter = ArrayObjectAdapter(cardPresenter)
