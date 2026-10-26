@@ -89,17 +89,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ steps.ver.outputs.name }}"
-          APK="dist/my-tv-v${{ steps.ver.outputs.name }}-debug.apk"
+          VER="${{ steps.ver.outputs.name }}"
+          CODE="${{ steps.ver.outputs.code }}"
+          APK="dist/my-tv-v${VER}-debug.apk"
           BODY=$(git log -1 --pretty=format:'%B')
-          if ! gh release create "$TAG" "$APK" dist/build-info.txt \
-              --title "my-tv $TAG" \
-              --notes "$BODY
-          ---
-          构建信息：commit ${GITHUB_SHA::7}，run #${GITHUB_RUN_NUMBER}，versionCode ${{ steps.ver.outputs.code }}" 2>err.txt; then
+          NOTES=$(printf '## 本次更新\n\n%s\n\n---\n- 版本：v%s（versionCode %s）\n- 提交：%s\n- 构建：run #%s\n- 安装：下载 my-tv-v%s-debug.apk；若提示签名不一致，请先卸载旧版本\n' "$BODY" "$VER" "$CODE" "${GITHUB_SHA::7}" "$GITHUB_RUN_NUMBER" "$VER")
+          if ! gh release create "v$VER" "$APK" dist/build-info.txt \
+              --title "my-tv v$VER" --notes "$NOTES" 2>err.txt; then
             cat err.txt
             if grep -q "already_exists" err.txt; then
-              gh release upload "$TAG" "$APK" dist/build-info.txt --clobber
+              gh release upload "v$VER" "$APK" dist/build-info.txt --clobber
             else
               exit 1
             fi
