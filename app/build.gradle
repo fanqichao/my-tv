@@ -11,12 +11,22 @@ android {
         enabled = true
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.fanqichao.mytv"
         minSdk 21
         targetSdk 33
-        versionCode VersionCode()
-        versionName VersionName()
+        // CI 通过 -PVERSION_NAME / -PVERSION_CODE 注入自动递增的版本号；
+        // 本地构建没有传参时回退到 git tag 或 version.json
+        versionCode(project.findProperty('VERSION_CODE')?.toString()?.toInteger() ?: VersionCode())
+        versionName(project.findProperty('VERSION_NAME')?.toString() ?: VersionName())
+
+        // 构建信息编进 BuildConfig，方便确认手上这个包是哪次构建出来的
+        buildConfigField "String", "BUILD_TIME", "\"${BuildTime()}\""
+        buildConfigField "String", "GIT_SHA", "\"${GitSha()}\""
 
         // This block is different from the one you use to link Gradle
         // to your CMake or ndk-build script.
@@ -67,6 +77,24 @@ android {
             path = file("CMakeLists.txt")
         }
     }
+}
+
+// 构建时间与提交号：写进 BuildConfig，出问题时能直接确认是哪个包
+static def BuildTime() {
+    return new Date().format("yyyy-MM-dd HH:mm:ss")
+}
+
+static def GitSha() {
+    try {
+        def p = "git rev-parse --short HEAD".execute()
+        p.waitFor()
+        def sha = p.text.trim()
+        if (sha) {
+            return sha
+        }
+    } catch (ignored) {
+    }
+    return "unknown"
 }
 
 static def VersionCode() {

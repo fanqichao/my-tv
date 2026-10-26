@@ -23,11 +23,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # 版本号自动迭代：v1.0.<递增序号>
+      # BASE_RUN 是「对应 v1.0.0 的那次运行号」，本仓库首次启用时为 8，
+      # 之后每次构建 PATCH 自动 +1，无需手动改 version.json
+      - name: Compute version
+        id: ver
+        run: |
+          BASE_RUN=8
+          PATCH=$(( GITHUB_RUN_NUMBER - BASE_RUN ))
+          if [ "$PATCH" -lt 0 ]; then PATCH=0; fi
+          VERSION_NAME="1.0.${PATCH}"
+          VERSION_CODE=$(( 10000 + GITHUB_RUN_NUMBER ))
+          echo "name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "### 构建版本 v${VERSION_NAME} (versionCode ${VERSION_CODE})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 运行号：#${GITHUB_RUN_NUMBER}（基准 #${BASE_RUN} = v1.0.0）" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 提交：${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run build with Gradle wrapper
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug -PIS_SO_BUILD=false --stacktrace 2>&1 | tee gradle-build.log
+          ./gradlew assembleDebug -PIS_SO_BUILD=false \
+            -PVERSION_NAME=${{ steps.ver.outputs.name }} \
+            -PVERSION_CODE=${{ steps.ver.outputs.code }} \
+            --stacktrace 2>&1 | tee gradle-build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             msg=$(grep -A 25 "What went wrong" gradle-build.log | head -40 | tr '\n' '~' | tr -d '\r' | cut -c1-3500)
@@ -37,6 +57,22 @@ jobs:
             echo "::error title=GradleError::$msg"
             exit "$status"
           fi
+
+      # 产物带版本号，避免每次下载下来都叫 app-debug.apk 分不清新旧
+      - name: Rename APK with version
+        if: success()
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             "dist/my-tv-v${{ steps.ver.outputs.name }}-debug.apk"
+          {
+            echo "versionName: ${{ steps.ver.outputs.name }}"
+            echo "versionCode: ${{ steps.ver.outputs.code }}"
+            echo "commit: ${GITHUB_SHA}"
+            echo "run: #${GITHUB_RUN_NUMBER}"
+            echo "builtAt: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          } > dist/build-info.txt
+          cat dist/build-info.txt
 
       - name: Upload build log
         if: always()
@@ -50,5 +86,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: my-tv-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: my-tv-v${{ steps.ver.outputs.name }}-debug
+          path: dist/*
