@@ -68,7 +68,8 @@ class MainFragment : VerticalGridSupportFragment() {
         // 左右内边距清零，让卡片贴靠面板左侧
         view?.post {
             val grid = findGridView(view) ?: return@post
-            grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+            // 上下间距稍微放宽一点，列表看起来更透气
+            grid.setItemSpacing((8 * resources.displayMetrics.density).toInt())
             // 上下留 12dp 余量：选中项放大 1.5 倍时上下各长 ~15px，不留余量会被屏幕上下边裁掉
             val margin = (12 * resources.displayMetrics.density).toInt()
             grid.setPadding(0, maxOf(grid.paddingTop, margin), 0, maxOf(grid.paddingBottom, margin))
