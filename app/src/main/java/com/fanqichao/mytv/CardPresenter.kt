@@ -184,8 +184,8 @@ class CardPresenter(
         // 台标原图 507x338，约 3:2
         private const val LOGO_ASPECT = 507f / 338f
 
-        /** 选中放大倍数：Leanback 自带的只有约 1.17，观感不明显，这里加大 */
-        private const val SELECTED_SCALE = 1.3f
+        /** 选中放大倍数：用户指定 1.5 倍 */
+        private const val SELECTED_SCALE = 1.5f
 
         /** 选中项抬高层级，盖过相邻未被选中的条目 */
         private const val SELECTED_ELEVATION_DP = 8f
