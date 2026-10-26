@@ -3,6 +3,7 @@ package com.fanqichao.mytv
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -60,6 +61,16 @@ class CardPresenter(
 
         card.tag = tvViewModel.videoUrl.value
 
+        // 诊断：卡片底色临时标红，用于确认是否有半透明层盖在卡片上
+        card.setBackgroundColor(0xFFFF0000.toInt())
+        image.alpha = 1f
+        Log.i(
+            "CardPresenter",
+            "bind ${tvViewModel.getTV().title} cardAlpha=${card.alpha} imgAlpha=${image.alpha} " +
+                "cardBg=${card.background} imgBg=${image.background} " +
+                "parent=${card.parent?.javaClass?.simpleName} size=${widthPx}x${heightPx}"
+        )
+
         // 焦点框画在台标自身上，未选中时完全透明
         val border = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
@@ -72,11 +83,9 @@ class CardPresenter(
         card.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
         applyFocus(card.hasFocus())
 
-        // 台标原图自带白→灰渐变底，加载时清除与边缘连通的浅色像素，
-        // 否则画面上就是一层灰蒙蒙；台标内部的白字不受影响
+        // 直接加载原图
         Glide.with(card.context)
             .load(tvViewModel.getTV().logo)
-            .transform(TransparentLogoTransform())
             .into(image)
     }
 
