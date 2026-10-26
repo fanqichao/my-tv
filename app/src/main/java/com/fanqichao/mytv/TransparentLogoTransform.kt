@@ -4,12 +4,18 @@ import android.graphics.Bitmap
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
 import java.security.MessageDigest
+import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * 台标图普遍带白色→浅灰的渐变底，直接贴在视频画面上会露出一块灰。
  *
- * 这里从图片四条边做泛洪填充：只有「与边缘连通」且「接近底色」的浅色像素才被抠成透明，
- * 台标内部被黑色/深色块包住的白色元素（例如 CCTV 的白色数字）不与边缘连通，不会被误伤。
+ * 做法：沿图片四条边多点采样得到一组参考色，再从四边向内做泛洪填充，
+ * 只把「与边缘连通」且「接近某个参考色」的浅色像素抠成透明。
+ * 台标内部被深色块包住的元素（例如 CCTV 的白色数字）不与边缘连通，不会被误伤。
+ *
+ * 采样点沿整条边分布而不是只取四角，是为了覆盖上下渐变的深浅两端，
+ * 否则图片底部较深的那一段会残留一条灰边。
  */
 class TransparentLogoTransform : BitmapTransformation() {
 
@@ -37,8 +43,8 @@ class TransparentLogoTransform : BitmapTransformation() {
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
 
-        // 底色参考值取四角里最不透明、最亮的一个，避免个别角是透明像素时判错
-        val ref = brightestCorner(pixels, w, h) ?: return bitmap
+        val refs = borderReferences(pixels, w, h)
+        if (refs.isEmpty()) return bitmap
 
         val visited = BooleanArray(w * h)
         val queue = IntArray(w * h)
@@ -48,7 +54,7 @@ class TransparentLogoTransform : BitmapTransformation() {
         fun seed(x: Int, y: Int) {
             val index = y * w + x
             if (visited[index]) return
-            if (!isBackground(pixels[index], ref)) return
+            if (!isBackground(pixels[index], refs)) return
             visited[index] = true
             queue[tail++] = index
         }
@@ -64,7 +70,7 @@ class TransparentLogoTransform : BitmapTransformation() {
 
         while (head < tail) {
             val index = queue[head++]
-            // 保留 RGB、把 alpha 置 0，边缘像素由系统按插值过渡，不会出现硬锯齿
+            // 保留 RGB、把 alpha 置 0，边缘由系统插值过渡，不会出现硬锯齿
             pixels[index] = pixels[index] and 0x00FFFFFF
 
             val x = index % w
@@ -79,24 +85,38 @@ class TransparentLogoTransform : BitmapTransformation() {
         return bitmap
     }
 
-    private fun brightestCorner(pixels: IntArray, w: Int, h: Int): Int? {
-        val corners = intArrayOf(
-            pixels[0],
-            pixels[w - 1],
-            pixels[(h - 1) * w],
-            pixels[h * w - 1]
-        )
-        var best: Int? = null
-        var bestLuma = -1
-        for (color in corners) {
-            if (((color ushr 24) and 0xFF) < 128) continue
-            val luma = luma(color)
-            if (luma > bestLuma) {
-                bestLuma = luma
-                best = color
+    /** 沿四条边均匀取点，收集若干「浅色」参考色，覆盖整条渐变 */
+    private fun borderReferences(pixels: IntArray, w: Int, h: Int): List<IntArray> {
+        val refs = ArrayList<IntArray>(MAX_REFS)
+
+        fun add(x: Int, y: Int) {
+            val color = pixels[y * w + x]
+            if (((color ushr 24) and 0xFF) < 128) return
+            if (luma(color) < MIN_LUMA) return
+            val r = (color shr 16) and 0xFF
+            val g = (color shr 8) and 0xFF
+            val b = color and 0xFF
+            val duplicate = refs.any {
+                abs(it[0] - r) < 8 && abs(it[1] - g) < 8 && abs(it[2] - b) < 8
             }
+            if (!duplicate) refs.add(intArrayOf(r, g, b))
         }
-        return best
+
+        val stepX = max(1, w / SAMPLE_STEPS)
+        val stepY = max(1, h / SAMPLE_STEPS)
+        var x = 0
+        while (x < w) {
+            add(x, 0)
+            add(x, h - 1)
+            x += stepX
+        }
+        var y = 0
+        while (y < h) {
+            add(0, y)
+            add(w - 1, y)
+            y += stepY
+        }
+        return if (refs.size > MAX_REFS) refs.subList(0, MAX_REFS) else refs
     }
 
     private fun luma(color: Int): Int {
@@ -106,22 +126,33 @@ class TransparentLogoTransform : BitmapTransformation() {
         return (r * 299 + g * 587 + b * 114) / 1000
     }
 
-    private fun isBackground(color: Int, ref: Int): Boolean {
+    private fun isBackground(color: Int, refs: List<IntArray>): Boolean {
         // 只抠浅色，深色台标主体永远保留
         if (luma(color) < MIN_LUMA) return false
-        val dr = ((color shr 16) and 0xFF) - ((ref shr 16) and 0xFF)
-        val dg = ((color shr 8) and 0xFF) - ((ref shr 8) and 0xFF)
-        val db = (color and 0xFF) - (ref and 0xFF)
-        return dr * dr + dg * dg + db * db <= TOLERANCE * TOLERANCE
+        val r = (color shr 16) and 0xFF
+        val g = (color shr 8) and 0xFF
+        val b = color and 0xFF
+        for (ref in refs) {
+            val dr = r - ref[0]
+            val dg = g - ref[1]
+            val db = b - ref[2]
+            if (dr * dr + dg * dg + db * db <= TOLERANCE * TOLERANCE) return true
+        }
+        return false
     }
 
     companion object {
-        private const val ID = "com.fanqichao.mytv.TransparentLogoTransform.v1"
+        private const val ID = "com.fanqichao.mytv.TransparentLogoTransform.v2"
 
-        // 与底色的 RGB 距离容差（平方比较），覆盖白→浅灰的渐变
-        private const val TOLERANCE = 62
+        // 与参考色的 RGB 距离容差（平方比较）
+        private const val TOLERANCE = 70
 
         // 亮度低于该值视为台标本体，不参与抠图
         private const val MIN_LUMA = 150
+
+        // 每条边的采样段数
+        private const val SAMPLE_STEPS = 16
+
+        private const val MAX_REFS = 16
     }
 }
