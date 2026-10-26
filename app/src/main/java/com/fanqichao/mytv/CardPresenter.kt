@@ -35,6 +35,7 @@ class CardPresenter(
     fun setSelected(item: TVViewModel?) {
         if (selectedItem === item) return
         selectedItem = item
+        Log.i("CardPresenter", "setSelected ${item?.getTV()?.title} bound=${boundViews.size}")
         // 放大/取消放大都走这里：不依赖 Leanback 的焦点事件
         //（快速滚动时新条目先拿到焦点后绑定，焦点事件会丢，Leanback 的放大就不生效了）
         boundViews.forEach { (tv, view) -> applySelectionState(view, tv === item, animate = true) }
@@ -47,6 +48,7 @@ class CardPresenter(
     private fun applySelectionState(card: View, selected: Boolean, animate: Boolean) {
         val targetScale = if (selected) SELECTED_SCALE else 1f
         val targetZ = if (selected) selectedElevationPx else 0f
+        Log.i("CardPresenter", "scale ${targetScale} animate=$animate")
         if (animate) {
             card.animate()
                 .scaleX(targetScale)
@@ -102,6 +104,13 @@ class CardPresenter(
         }
 
         card.tag = tvViewModel.videoUrl.value
+        // 让卡片占满整列宽度：否则条目会被 Leanback 水平居中，图标离屏幕左边总有一段空白
+        (card.layoutParams as? ViewGroup.LayoutParams)?.let { lp ->
+            if (lp.width != ViewGroup.LayoutParams.MATCH_PARENT) {
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                card.layoutParams = lp
+            }
+        }
         card.pivotX = widthPx / 2f
         card.pivotY = heightPx / 2f
         boundViews[tvViewModel] = card

@@ -15,3 +15,11 @@
 .cxx
 local.properties
 /path/
+
+shots/
+*.png
+*.jpg
+*.apk
+.run.json
+.rel.json
+.apkurl.txt

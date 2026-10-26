@@ -73,8 +73,6 @@ class MainFragment : VerticalGridSupportFragment() {
             // 放大的条目允许画到网格边界外，避免上下两端被裁掉
             grid.clipChildren = false
             grid.clipToPadding = false
-            // 网格/条目自带一点左内边距，把整列图标平移到屏幕最左侧，做到真正贴边
-            grid.post { alignGridToLeftEdge(grid) }
         }
 
         setupEventListeners()
@@ -136,8 +134,8 @@ class MainFragment : VerticalGridSupportFragment() {
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
         val presenter = CardPresenter(context!!).apply {
-            // 台标不需要占满面板：76dp 再整体缩小 10% ≈ 68dp
-            cardWidth = (panelWidthDp - 12).coerceIn(44, 68)
+            // 台标不需要占满面板：68dp 再放大 10% ≈ 75dp
+            cardWidth = (panelWidthDp - 12).coerceIn(44, 75)
         }
         cardPresenter = presenter
 
@@ -363,31 +361,6 @@ class MainFragment : VerticalGridSupportFragment() {
             }
         }
         return null
-    }
-
-    /**
-     * 把整列图标贴到屏幕最左边。
-     * 网格自身或条目容器会带一点内边距/偏移，量出第一个条目的实际左边距，
-     * 再用 translationX 抵消掉（面板收起时不要动）。
-     */
-    private fun alignGridToLeftEdge(grid: androidx.leanback.widget.BaseGridView) {
-        if (grid.childCount == 0) return
-        // 选中的条目被放大，位置会略偏，优先取一个未放大的条目做基准
-        var picked: View? = null
-        for (i in 0 until grid.childCount) {
-            val child = grid.getChildAt(i)
-            if (child.scaleX == 1f) {
-                picked = child
-                break
-            }
-        }
-        val ref: View = picked ?: (grid.getChildAt(0) ?: return)
-        val itemLoc = IntArray(2)
-        ref.getLocationInWindow(itemLoc)
-        // 条目左边到屏幕左边的距离，直接抵消掉
-        if (itemLoc[0] > 0) {
-            grid.translationX = -itemLoc[0].toFloat()
-        }
     }
 
     companion object {
