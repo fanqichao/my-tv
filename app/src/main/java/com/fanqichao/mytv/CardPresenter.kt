@@ -16,7 +16,8 @@ import com.fanqichao.mytv.models.TVViewModel
  *
  * - 不使用 ImageCardView：它会在焦点变化时重置自己的半透明背景
  * - 卡片尺寸严格按台标原图比例（507x338 ≈ 3:2）
- * - 不加任何选中边框：选中态只靠 Leanback 自带的放大（ZOOM_FACTOR_LARGE）
+ * - 不加任何选中边框；选中态由 Fragment 选中回调驱动：
+ *   自绘放大（1.3 倍）+ 抬高层级，不依赖 Leanback 焦点事件（快速滚动不丢效）
  */
 class CardPresenter(
     private val context: Context,
@@ -34,9 +35,32 @@ class CardPresenter(
     fun setSelected(item: TVViewModel?) {
         if (selectedItem === item) return
         selectedItem = item
+        // 放大/取消放大都走这里：不依赖 Leanback 的焦点事件
+        //（快速滚动时新条目先拿到焦点后绑定，焦点事件会丢，Leanback 的放大就不生效了）
+        boundViews.forEach { (tv, view) -> applySelectionState(view, tv === item, animate = true) }
         // 兜底：某些 leanback 版本会给未选中项重新压暗（灰色蒙版），
         // 这里在选中变化后再清一次，保证只有放大、没有变灰
         boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
+    }
+
+    /** 按选中状态设置缩放与层级，bind 时直接赋值、选中变化时带动画 */
+    private fun applySelectionState(card: View, selected: Boolean, animate: Boolean) {
+        val targetScale = if (selected) SELECTED_SCALE else 1f
+        val targetZ = if (selected) selectedElevationPx else 0f
+        if (animate) {
+            card.animate()
+                .scaleX(targetScale)
+                .scaleY(targetScale)
+                .translationZ(targetZ)
+                .setDuration(180)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        } else {
+            card.animate().cancel()
+            card.scaleX = targetScale
+            card.scaleY = targetScale
+            card.translationZ = targetZ
+        }
     }
 
     private val density: Float get() = context.resources.displayMetrics.density
@@ -81,6 +105,8 @@ class CardPresenter(
         card.pivotX = widthPx / 2f
         card.pivotY = heightPx / 2f
         boundViews[tvViewModel] = card
+        // 复用的卡片按当前选中项直接落位（不带动画），保证滚动后状态正确
+        applySelectionState(card, tvViewModel === selectedItem, animate = false)
 
         // Leanback 给每个网格条目套了 ShadowOverlayContainer，
         // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
@@ -132,5 +158,13 @@ class CardPresenter(
 
         // 台标原图 507x338，约 3:2
         private const val LOGO_ASPECT = 507f / 338f
+
+        /** 选中放大倍数：Leanback 自带的只有约 1.17，观感不明显，这里加大 */
+        private const val SELECTED_SCALE = 1.3f
+
+        /** 选中项抬高层级，盖过相邻未被选中的条目 */
+        private const val SELECTED_ELEVATION_DP = 8f
     }
+
+    private val selectedElevationPx: Float get() = SELECTED_ELEVATION_DP * density
 }

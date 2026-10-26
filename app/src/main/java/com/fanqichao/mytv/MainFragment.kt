@@ -44,10 +44,11 @@ class MainFragment : VerticalGridSupportFragment() {
         super.onCreate(savedInstanceState)
 
         // 竖向网格：单列，上下键即垂直换频道
-        // 第二个参数 false = 关闭 focus dimmer。
-        // Leanback 默认会把「未选中」的条目压暗（画一层灰色遮罩），
-        // 白底台标就会变成灰蒙蒙的灰底，这里必须关掉，只保留放大效果
-        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE, false)
+        // 第二个参数 false = 关闭 focus dimmer（未选中项的灰色蒙版）；
+        // ZOOM_FACTOR_NONE = 关闭 Leanback 自带的放大——它倍数小且依赖焦点事件，
+        // 快速滚动时新条目先拿到焦点后绑定，事件会丢，导致后面的频道不放大。
+        // 放大改由 CardPresenter 在选中回调里自己驱动，稳定且倍数可调
+        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_NONE, false)
         gridPresenter.numberOfColumns = 1
         gridPresenter.shadowEnabled = false
         setGridPresenter(gridPresenter)
@@ -69,6 +70,9 @@ class MainFragment : VerticalGridSupportFragment() {
             val grid = findGridView(view) ?: return@post
             grid.setItemSpacing((4 * resources.displayMetrics.density).toInt())
             grid.setPadding(0, grid.paddingTop, 0, grid.paddingBottom)
+            // 放大的条目允许画到网格边界外，避免上下两端被裁掉
+            grid.clipChildren = false
+            grid.clipToPadding = false
             // 网格/条目自带一点左内边距，把整列图标平移到屏幕最左侧，做到真正贴边
             grid.post { alignGridToLeftEdge(grid) }
         }
