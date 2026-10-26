@@ -58,9 +58,7 @@ class MainFragment : VerticalGridSupportFragment() {
 
         // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台
         view?.post {
-            view?.findViewById<androidx.leanback.widget.VerticalGridView>(
-                androidx.leanback.R.id.grid_view
-            )?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+            gridView?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
         }
 
         setupEventListeners()
