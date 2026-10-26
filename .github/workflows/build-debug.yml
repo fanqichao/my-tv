@@ -82,6 +82,29 @@ jobs:
           path: gradle-build.log
           if-no-files-found: ignore
 
+      # 构建成功后自动发布 Release：tag = 版本号，说明取自本次提交信息
+      # （提交时把修复内容写在 commit message 里即可；tag 已存在则改为补充上传）
+      - name: Publish release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.ver.outputs.name }}"
+          APK="dist/my-tv-v${{ steps.ver.outputs.name }}-debug.apk"
+          BODY=$(git log -1 --pretty=format:'%B')
+          if ! gh release create "$TAG" "$APK" dist/build-info.txt \
+              --title "my-tv $TAG" \
+              --notes "$BODY
+          ---
+          构建信息：commit ${GITHUB_SHA::7}，run #${GITHUB_RUN_NUMBER}，versionCode ${{ steps.ver.outputs.code }}" 2>err.txt; then
+            cat err.txt
+            if grep -q "already_exists" err.txt; then
+              gh release upload "$TAG" "$APK" dist/build-info.txt --clobber
+            else
+              exit 1
+            fi
+          fi
+
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
