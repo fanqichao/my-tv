@@ -77,8 +77,8 @@ class CardPresenter(
             isFocusableInTouchMode = true
             background = null
             clipChildren = false
-            // 放大时以台标自身中心为枢轴，否则会按整列宽度居中放大，出现左右偏移
-            pivotX = widthPx / 2f
+            // 放大时以台标左边缘为枢轴（贴左布局），避免放大后左侧被切
+            pivotX = 0f
             pivotY = heightPx / 2f
         }
         val image = ImageView(parent.context).apply {
@@ -104,14 +104,10 @@ class CardPresenter(
         }
 
         card.tag = tvViewModel.videoUrl.value
-        // 让卡片占满整列宽度：否则条目会被 Leanback 水平居中，图标离屏幕左边总有一段空白
-        (card.layoutParams as? ViewGroup.LayoutParams)?.let { lp ->
-            if (lp.width != ViewGroup.LayoutParams.MATCH_PARENT) {
-                lp.width = ViewGroup.LayoutParams.MATCH_PARENT
-                card.layoutParams = lp
-            }
-        }
-        card.pivotX = widthPx / 2f
+        // 条目会被 Leanback 水平居中，这里把每条卡片自身的左偏移抵消掉，让整列台标贴住屏幕左边缘
+        card.post { card.translationX = -card.left.toFloat() }
+        // 放大以左边缘为枢轴：卡片贴左，放大时向右长，不会把台标挤出屏幕
+        card.pivotX = 0f
         card.pivotY = heightPx / 2f
         boundViews[tvViewModel] = card
         // 复用的卡片按当前选中项直接落位（不带动画），保证滚动后状态正确
