@@ -72,10 +72,11 @@ class CardPresenter(
         card.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
         applyFocus(card.hasFocus())
 
-        // 直接用原图，不做任何处理
+        // 台标原图自带白→灰渐变底，加载时清除与边缘连通的浅色像素，
+        // 否则画面上就是一层灰蒙蒙；台标内部的白字不受影响
         Glide.with(card.context)
             .load(tvViewModel.getTV().logo)
-            .centerInside()
+            .transform(TransparentLogoTransform())
             .into(image)
     }
 
