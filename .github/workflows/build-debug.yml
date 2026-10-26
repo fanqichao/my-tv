@@ -24,9 +24,30 @@ jobs:
           distribution: 'temurin'
 
       - name: Run build with Gradle wrapper
-        run: ./gradlew assembleDebug -PIS_SO_BUILD=false
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew assembleDebug -PIS_SO_BUILD=false --stacktrace 2>&1 | tee gradle-build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            msg=$(grep -A 25 "What went wrong" gradle-build.log | head -40 | tr '\n' '~' | tr -d '\r' | cut -c1-3500)
+            if [ -z "$msg" ]; then
+              msg=$(tail -40 gradle-build.log | tr '\n' '~' | tr -d '\r' | cut -c1-3500)
+            fi
+            echo "::error title=GradleError::$msg"
+            exit "$status"
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: gradle-build.log
+          if-no-files-found: ignore
 
       - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: my-tv-debug-apk
