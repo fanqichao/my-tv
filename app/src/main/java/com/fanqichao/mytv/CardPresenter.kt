@@ -65,14 +65,26 @@ class CardPresenter(
         // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
         clearShadowOverlay(card)
 
-        // 焦点框画在台标自身上，未选中时完全透明
-        val border = GradientDrawable().apply {
+        // 焦点框画在台标自身上：外圈黑 + 内圈白的双层描边。
+        // 台标原图自带浅色底，纯白描边会融进底色看不清，加一圈黑边保底
+        val whiteRing = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            setStroke((2 * density).toInt().coerceAtLeast(1), Color.WHITE)
-            cornerRadius = 4 * density
+            setStroke((3 * density).toInt().coerceAtLeast(1), Color.WHITE)
+            cornerRadius = 5 * density
+        }
+        val blackRing = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            setStroke((5 * density).toInt().coerceAtLeast(1), Color.BLACK)
+            cornerRadius = 5 * density
+        }
+        val focusBorder = android.graphics.drawable.LayerDrawable(
+            arrayOf(blackRing, whiteRing)
+        ).apply {
+            val inset = (2 * density).toInt()
+            setLayerInset(1, inset, inset, inset, inset)
         }
         val applyFocus = { focused: Boolean ->
-            image.background = if (focused) border else null
+            image.background = if (focused) focusBorder else null
             // 焦点变化时 Leanback 可能重新套上遮罩，这里再清一次
             clearShadowOverlay(card)
         }
