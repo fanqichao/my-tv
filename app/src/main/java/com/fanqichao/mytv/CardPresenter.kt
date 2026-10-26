@@ -42,6 +42,8 @@ class CardPresenter(
         // 白色卡片底 + 灰色信息区底都去掉，否则透明背景上会露出色块
         cardView.setBackgroundColor(Color.TRANSPARENT)
         cardView.setInfoAreaBackgroundColor(Color.TRANSPARENT)
+        // 去掉卡片默认内边距，否则台标四周会多出一圈空白，看着像大方格
+        cardView.setContentPadding(0, 0, 0, 0)
         // 只留台标：整块信息区（标题/节目名）直接隐藏，不再占高度
         cardView.findViewById<View>(androidx.leanback.R.id.info_field)?.visibility = View.GONE
 
@@ -74,12 +76,10 @@ class CardPresenter(
             cardView.setOnFocusChangeListener { _, hasFocus -> applyFocus(hasFocus) }
             applyFocus(cardView.hasFocus())
 
+            // 直接用原图，不做任何处理
             Glide.with(viewHolder.view.context)
                 .load(tvViewModel.getTV().logo)
                 .centerInside()
-                // 台标自带白/灰渐变底，加载时抠掉，避免在画面上留灰块
-                // 注意顺序：centerInside() 会覆盖之前的 transformation，抠图必须放最后
-                .transform(TransparentLogoTransform())
                 .into(imageView)
         }
     }

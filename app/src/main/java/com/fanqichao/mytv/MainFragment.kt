@@ -115,7 +115,8 @@ class MainFragment : VerticalGridSupportFragment() {
         val dm = resources.displayMetrics
         val panelWidthDp = (dm.widthPixels * MainActivity.PANEL_WIDTH_RATIO / dm.density).toInt()
         val cardPresenter = CardPresenter(context!!).apply {
-            cardWidth = (panelWidthDp - 24).coerceAtLeast(120)
+            // 左右各留 6dp，卡片不能超过面板宽度（原来硬编码 120dp 下限会顶出面板）
+            cardWidth = (panelWidthDp - 12).coerceIn(72, 200)
         }
 
         rowsAdapter = ArrayObjectAdapter(cardPresenter)
