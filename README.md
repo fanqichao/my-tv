@@ -157,4 +157,6 @@ A：需要。频道表编译进 APK，改源必须重新构建安装。
 
 如果这个项目对你有帮助，欢迎 Star ⭐ 或请作者喝杯咖啡：
 
-![赞赏](./screenshots/appreciate.jpeg)
+<p align="center">
+  <img src="./screenshots/appreciate.jpeg" width="420" alt="赞赏">
+</p>
