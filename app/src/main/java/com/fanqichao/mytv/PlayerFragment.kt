@@ -61,18 +61,20 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                 playerView!!.player?.playWhenReady = true
                 playerView!!.player?.addListener(object : Player.Listener {
                     override fun onVideoSizeChanged(videoSize: VideoSize) {
-                        val ratio = playerView?.measuredWidth?.div(playerView?.measuredHeight!!)
-                        if (ratio != null) {
-                            val layoutParams = playerView?.layoutParams
-                            if (ratio < aspectRatio) {
-                                layoutParams?.height =
-                                    (playerView?.measuredWidth?.div(aspectRatio))?.toInt()
-                                playerView?.layoutParams = layoutParams
-                            } else if (ratio > aspectRatio) {
-                                layoutParams?.width =
-                                    (playerView?.measuredHeight?.times(aspectRatio))?.toInt()
-                                playerView?.layoutParams = layoutParams
-                            }
+                        val view = playerView ?: return
+                        val w = view.measuredWidth
+                        val h = view.measuredHeight
+                        // 视图尚未测量完成时宽高可能为 0，直接相除会抛 ArithmeticException
+                        if (w <= 0 || h <= 0) return
+                        // 必须用浮点除法，整数除法会把 1920/1080 截断成 1，导致每次回调都改错尺寸
+                        val ratio = w.toFloat() / h
+                        val layoutParams = view.layoutParams
+                        if (ratio < aspectRatio) {
+                            layoutParams.height = (w / aspectRatio).toInt()
+                            view.layoutParams = layoutParams
+                        } else if (ratio > aspectRatio) {
+                            layoutParams.width = (h * aspectRatio).toInt()
+                            view.layoutParams = layoutParams
                         }
                     }
 
@@ -86,7 +88,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         super.onIsPlayingChanged(isPlaying)
                         if (isPlaying) {
-                            (activity as MainActivity).isPlaying()
+                            (activity as? MainActivity)?.isPlaying()
                         }
                     }
                 })
@@ -95,17 +97,23 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                 tvViewModel?.let { play(it) }
             }
         })
-        (activity as MainActivity).fragmentReady("PlayerFragment")
+        (activity as? MainActivity)?.fragmentReady("PlayerFragment")
         return _binding!!.root
     }
 
     @OptIn(UnstableApi::class)
     fun play(tvViewModel: TVViewModel) {
         this.tvViewModel = tvViewModel
+        // 地址为空或索引越界时直接返回，避免 !! 取值闪退
+        val url = tvViewModel.getVideoUrlCurrentOrNull()
+        if (url.isNullOrEmpty()) {
+            Log.e(TAG, "empty url, skip play: ${tvViewModel.getTV().title}")
+            return
+        }
         // 直连源地址无后缀（如 http://host:3566/608807420），必须显式指定 HLS 类型，
         // 否则 ExoPlayer 会按后缀推断成普通流导致解析失败黑屏
         val media3Item = androidx.media3.common.MediaItem.Builder()
-            .setUri(tvViewModel.getVideoUrlCurrent())
+            .setUri(url)
             .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
             .build()
         playerView?.player?.run {
@@ -113,7 +121,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
             prepare()
         }
         val legacyItem = com.google.android.exoplayer2.MediaItem.Builder()
-            .setUri(tvViewModel.getVideoUrlCurrent())
+            .setUri(url)
             .setMimeType(com.google.android.exoplayer2.util.MimeTypes.APPLICATION_M3U8)
             .build()
         exoPlayer?.run {

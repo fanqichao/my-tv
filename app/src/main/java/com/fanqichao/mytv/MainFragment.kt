@@ -61,7 +61,7 @@ class MainFragment : VerticalGridSupportFragment() {
         tvListViewModel.tvListViewModel.value?.forEach { tvViewModel ->
             tvViewModel.errInfo.observe(viewLifecycleOwner) { _ ->
                 if (tvViewModel.errInfo.value != null
-                    && tvViewModel.getTV().id == itemPosition
+                    && tvViewModel.getRowPosition() == itemPosition
                 ) {
                     Toast.makeText(context, tvViewModel.errInfo.value, Toast.LENGTH_SHORT).show()
                 }
@@ -70,7 +70,7 @@ class MainFragment : VerticalGridSupportFragment() {
 
                 // not first time && channel not change
                 if (tvViewModel.ready.value != null
-                    && tvViewModel.getTV().id == itemPosition
+                    && tvViewModel.getRowPosition() == itemPosition
                     && check(tvViewModel)
                 ) {
                     Log.i(TAG, "ready ${tvViewModel.getTV().title}")
@@ -124,6 +124,9 @@ class MainFragment : VerticalGridSupportFragment() {
         var idx = 0
         for ((_, v) in TVList.list) {
             for (v1 in v) {
+                // 内置频道表的 id 默认都是 0，这里按全局序号回填，
+                // 否则选台时按 id 定位会永远落在第 0 个频道
+                v1.id = idx
                 val tvViewModel = TVViewModel(v1)
                 tvViewModel.setRowPosition(idx)   // 全局序号，即网格条目位置
                 tvViewModel.setItemPosition(0)
@@ -180,14 +183,16 @@ class MainFragment : VerticalGridSupportFragment() {
     }
 
     private inner class ItemViewClickedListener : OnItemViewClickedListener {
+        // VerticalGridPresenter 走网格点击桥接时 rowViewHolder 恒为 null，
+        // 这里必须是可空类型，否则 Kotlin 的入参非空校验会直接抛 NPE 闪退
         override fun onItemClicked(
             itemViewHolder: Presenter.ViewHolder,
             item: Any,
-            rowViewHolder: RowPresenter.ViewHolder,
+            rowViewHolder: RowPresenter.ViewHolder?,
             row: Row?
         ) {
             if (item is TVViewModel) {
-                tvListViewModel.setItemPositionCurrent(item.getTV().id)
+                tvListViewModel.setItemPositionCurrent(item.getRowPosition())
                 confirmSelect()
             }
         }
@@ -221,15 +226,17 @@ class MainFragment : VerticalGridSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder?, row: Row?
         ) {
             if (item is TVViewModel) {
-                tvListViewModel.setItemPositionCurrent(item.getTV().id)
-                (activity as MainActivity).mainActive()
+                tvListViewModel.setItemPositionCurrent(item.getRowPosition())
+                (activity as? MainActivity)?.mainActive()
             }
         }
     }
 
     fun check(tvViewModel: TVViewModel): Boolean {
         val title = tvViewModel.getTV().title
-        val videoUrl = tvViewModel.videoIndex.value?.let { tvViewModel.videoUrl.value?.get(it) }
+        // 索引可能为 -1 或越界（换源/数据未就绪时），用 getOrNull 兜底避免直接抛异常
+        val videoUrl = tvViewModel.videoIndex.value
+            ?.let { tvViewModel.videoUrl.value?.getOrNull(it) }
         if (videoUrl == null || videoUrl == "") {
             Log.e(TAG, "$title videoUrl is empty")
             return false

@@ -137,8 +137,16 @@ class TVViewModel(private var tv: TV) : ViewModel() {
         _epg.value = p.map { EPG(it.title, formatFTime(it.event_time)) }.toMutableList()
     }
 
+    /**
+     * 当前播放地址。索引可能为 -1（空列表）或越界，这里统一返回 null 而不是抛异常。
+     */
+    fun getVideoUrlCurrentOrNull(): String? {
+        val index = _videoIndex.value ?: return null
+        return _videoUrl.value?.getOrNull(index)
+    }
+
     fun getVideoUrlCurrent(): String {
-        return _videoUrl.value!![_videoIndex.value!!]
+        return getVideoUrlCurrentOrNull() ?: ""
     }
 
     companion object {
