@@ -2,6 +2,8 @@ package com.fanqichao.mytv
 
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.leanback.app.VerticalGridSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
@@ -58,7 +60,7 @@ class MainFragment : VerticalGridSupportFragment() {
 
         // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台
         view?.post {
-            gridView?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
+            findGridView(view)?.setItemSpacing((4 * resources.displayMetrics.density).toInt())
         }
 
         setupEventListeners()
@@ -333,6 +335,17 @@ class MainFragment : VerticalGridSupportFragment() {
     override fun onDestroy() {
         Log.i(TAG, "onDestroy")
         super.onDestroy()
+    }
+
+    /** 递归找网格控件，避免依赖不同 leanback 版本里不一致的资源 id */
+    private fun findGridView(v: View?): androidx.leanback.widget.BaseGridView? {
+        if (v is androidx.leanback.widget.BaseGridView) return v
+        if (v is ViewGroup) {
+            for (i in 0 until v.childCount) {
+                findGridView(v.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 
     companion object {
