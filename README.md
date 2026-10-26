@@ -6,7 +6,6 @@
 
 1. 下载
     * [github](https://github.com/fanqichao/my-tv/releases/)
-    * [gitee](https://gitee.com/fanqichao/my-tv/releases/)
 2. 安裝
     * U盘安装
     * 小米电视可以使用小米电视助手进行安装
@@ -14,8 +13,6 @@
        ```shell
        adb install my-tv.apk
        ```
-
-![image](./screenshots/img_3.png)
 ![image](./screenshots/img_2.png)
 ![image](./screenshots/img_1.png)
 
@@ -25,23 +22,8 @@
 
 ## TODO
 
-* 音量不同
-* 大湾区卫视、广东4k超高清、广东珠江、三沙卫视
-* CHC高清三个电影频道
-* 地方频道
-* 收藏夹
-* 海外
-* 隐藏频道
-* 亮度调节
-* 音量调节
-* 軟解
-* 自動更新
+* 调整左侧目录只显示一级目录
 
-無法自啟的設備：
-斐讯N1盒子，[Phicomm] Phicomm p230 (Android 7.1.2)
-
-閃退：
-中国移动盒子(新魔百和M302A) 4.4.2
 
 ## 版权说明
 
