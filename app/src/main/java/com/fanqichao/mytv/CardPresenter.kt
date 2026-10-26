@@ -79,10 +79,10 @@ class CardPresenter(
             pivotX = 0f
             pivotY = heightPx / 2f
         }
-        card.addOnLayoutChangeListener { v, l, _, _, _, _, _, _, _ ->
-            // 条目会被 Leanback 水平居中：每次布局后把自身的左偏移抵消掉，让整列台标贴住屏幕左边缘
-            val target = -l.toFloat()
-            if (v.translationX != target) v.translationX = target
+        card.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            // 条目会被 Leanback 水平居中、网格自身也带内边距：
+            // 布局后量出条目在窗口里的真实左边，整体平移网格，让台标贴住屏幕左边缘
+            stickToLeftEdge(v)
         }
         val image = ImageView(parent.context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -123,6 +123,26 @@ class CardPresenter(
             .load(tvViewModel.getTV().logo)
             .format(com.bumptech.glide.load.DecodeFormat.PREFER_ARGB_8888)
             .into(image)
+    }
+
+    /** 把整列台标平移到屏幕最左侧 */
+    private fun stickToLeftEdge(card: View) {
+        var parent: android.view.ViewParent? = card.parent
+        var grid: View? = null
+        while (parent != null) {
+            if (parent is androidx.leanback.widget.BaseGridView) {
+                grid = parent
+                break
+            }
+            parent = parent.parent
+        }
+        val gridView = grid ?: return
+        val loc = IntArray(2)
+        card.getLocationInWindow(loc)
+        // 已经把左边距抵消过了就不再动，避免来回抖动
+        if (loc[0] > 0 && gridView.translationX == 0f) {
+            gridView.translationX = -loc[0].toFloat()
+        }
     }
 
     /**
