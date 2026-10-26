@@ -42,7 +42,7 @@ class MainFragment : VerticalGridSupportFragment() {
         super.onCreate(savedInstanceState)
 
         // 竖向网格：单列，上下键即垂直换频道
-        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_MEDIUM)
+        val gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE)
         gridPresenter.numberOfColumns = 1
         gridPresenter.shadowEnabled = false
         setGridPresenter(gridPresenter)

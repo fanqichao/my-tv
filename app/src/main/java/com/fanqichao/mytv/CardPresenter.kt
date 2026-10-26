@@ -65,11 +65,11 @@ class CardPresenter(
         // 默认带一层约 60% 的暗色遮罩，会让台标看起来灰蒙蒙的
         clearShadowOverlay(card)
 
-        // 焦点框画在台标自身上：外圈黑 + 内圈白的双层描边。
-        // 台标原图自带浅色底，纯白描边会融进底色看不清，加一圈黑边保底
+        // 焦点框画在台标自身上：外圈黑 + 内圈金的双层描边
         val whiteRing = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            setStroke((3 * density).toInt().coerceAtLeast(1), Color.WHITE)
+            // 金色描边：台标自带浅色底，白边会糊在一起，金色在亮/暗画面上都醒目
+            setStroke((3 * density).toInt().coerceAtLeast(1), 0xFFFFC107.toInt())
             cornerRadius = 5 * density
         }
         val blackRing = GradientDrawable().apply {
