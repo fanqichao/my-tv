@@ -75,6 +75,11 @@ class MainFragment : VerticalGridSupportFragment() {
 
         loadRows()
 
+        view?.setOnTouchListener { _, event ->
+            Log.d(TAG, "root touch action=${event.actionMasked} x=${event.x} y=${event.y}")
+            false
+        }
+
         // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台；
         // 左右内边距清零，让卡片贴靠面板左侧
         view?.post {
@@ -95,6 +100,7 @@ class MainFragment : VerticalGridSupportFragment() {
             var lastY = 0f
             var moved = false
             grid.setOnTouchInterceptListener { event ->
+                Log.d(TAG, "grid intercept action=${event.actionMasked} y=${event.y}")
                 (activity as? MainActivity)?.mainActive()
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
