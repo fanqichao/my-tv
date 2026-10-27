@@ -422,6 +422,12 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         return super.onKeyDown(keyCode, event)
     }
 
+    /**
+     * ⚠️ 不要删：libnative.so 通过 JNI 反射调用本方法（GetMethodID 忽略 private）。
+     * 删除会导致启动时 NoSuchMethodError 崩溃。
+     */
+    private fun getAppSignature() = this.appSignature
+
     override fun onStart() {
         Log.i(TAG, "onStart")
         super.onStart()

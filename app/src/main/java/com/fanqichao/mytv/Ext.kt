@@ -5,9 +5,15 @@ package com.fanqichao.mytv
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.pm.Signature
+import android.content.pm.SigningInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.util.Log
+import java.security.MessageDigest
+
+private const val TAG = "Extensions"
 
 private val Context.packageInfo: PackageInfo
     get() {
@@ -46,6 +52,32 @@ val Context.appVersionCode: Long
  */
 val Context.appVersionName: String get() = packageInfo.versionName
 
+/**
+ * 应用签名（MD5）。
+ * ⚠️ 不要删：libnative.so 会通过 JNI 反射 MainActivity.getAppSignature()，
+ * 删除后启动即抛 NoSuchMethodError 崩溃。
+ */
+val Context.appSignature: String
+    get() {
+        val packageInfo = this.packageInfo
+        var sign: Signature? = null
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            val signatures: Array<out Signature>? = packageInfo.signatures
+            if (signatures != null) {
+                sign = signatures[0]
+            }
+        } else {
+            val signingInfo: SigningInfo? = packageInfo.signingInfo
+            if (signingInfo != null) {
+                sign = signingInfo.apkContentsSigners[0]
+            }
+        }
+        if (sign == null) {
+            return ""
+        }
+        return hashSignature(sign)
+    }
+
 val Context.isNetworkConnected: Boolean
     get() {
         val connectivityManager =
@@ -63,3 +95,15 @@ val Context.isNetworkConnected: Boolean
             return networkInfo != null && networkInfo.isConnectedOrConnecting
         }
     }
+
+private fun hashSignature(signature: Signature): String {
+    return try {
+        val md = MessageDigest.getInstance("MD5")
+        md.update(signature.toByteArray())
+        val digest = md.digest()
+        digest.let { it -> it.joinToString("") { "%02x".format(it) } }
+    } catch (e: Exception) {
+        Log.e(TAG, "Error hashing signature", e)
+        ""
+    }
+}
