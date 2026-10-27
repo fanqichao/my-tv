@@ -18,8 +18,6 @@ object SP {
     // If start app on device boot or not
     private const val KEY_BOOT_STARTUP = "boot_startup"
 
-    private const val KEY_GRID = "grid"
-
     // 期望默认值是否已写入（避免覆盖用户后来的手动设置）
     private const val KEY_DEFAULTS_APPLIED = "defaults_applied_v2"
 
@@ -64,10 +62,6 @@ object SP {
     var bootStartup: Boolean
         get() = sp.getBoolean(KEY_BOOT_STARTUP, true)
         set(value) = sp.edit().putBoolean(KEY_BOOT_STARTUP, value).apply()
-
-    var grid: Boolean
-        get() = sp.getBoolean(KEY_GRID, false)
-        set(value) = sp.edit().putBoolean(KEY_GRID, value).apply()
 
     var itemPosition: Int
         get() = sp.getInt(KEY_POSITION, 0)

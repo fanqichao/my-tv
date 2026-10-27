@@ -6,7 +6,6 @@ import android.net.Network
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.GestureDetector
 import android.view.Gravity
@@ -21,9 +20,7 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.fanqichao.mytv.models.TVViewModel
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 
@@ -50,12 +47,9 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     private val delayHideSetting: Long = 10000
 
     init {
+        // 校准本地时钟（与服务器时间差），EPG 的"正在直播/即将播出"依赖它
         lifecycleScope.launch(Dispatchers.IO) {
-            val utilsJob = async(start = CoroutineStart.LAZY) { Utils.init() }
-
-            utilsJob.start()
-
-//            utilsJob.await()
+            Utils.init()
         }
     }
 
@@ -146,14 +140,6 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
     fun next() {
         mainFragment.next()
-    }
-
-    private fun prevSource() {
-//        mainFragment.prevSource()
-    }
-
-    private fun nextSource() {
-//        mainFragment.nextSource()
     }
 
     fun switchMainFragment() {
@@ -277,28 +263,9 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             velocityX: Float,
             velocityY: Float
         ): Boolean {
-            if (velocityY > 0) {
-                if (mainFragment.isHidden) {
-                    prev()
-                } else {
-//                    if (mainFragment.selectedPosition == 0) {
-//                        mainFragment.setSelectedPosition(
-//                            mainFragment.tvListViewModel.maxNum.size - 1,
-//                            false
-//                        )
-//                    }
-                }
-            }
-            if (velocityY < 0) {
-                if (mainFragment.isHidden) {
-                    next()
-                } else {
-//                    if (mainFragment.selectedPosition == mainFragment.tvListViewModel.maxNum.size - 1) {
-////                        mainFragment.setSelectedPosition(0, false)
-//                        hideMainFragment()
-//                        return false
-//                    }
-                }
+            // 面板隐藏时上下 fling 直接换台；面板可见时交给网格自己处理
+            if (mainFragment.isHidden) {
+                if (velocityY > 0) prev() else next()
             }
             return super.onFling(e1, e2, velocityX, velocityY)
         }
@@ -325,36 +292,16 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         }
     }
 
+    // 面板可见时上下键交给网格移动焦点，这里不做处理
     private fun channelUp() {
         if (mainFragment.isHidden) {
-            if (SP.channelReversal) {
-                next()
-                return
-            }
-            prev()
-        } else {
-//                    if (mainFragment.selectedPosition == 0) {
-//                        mainFragment.setSelectedPosition(
-//                            mainFragment.tvListViewModel.maxNum.size - 1,
-//                            false
-//                        )
-//                    }
+            if (SP.channelReversal) next() else prev()
         }
     }
 
     private fun channelDown() {
         if (mainFragment.isHidden) {
-            if (SP.channelReversal) {
-                prev()
-                return
-            }
-            next()
-        } else {
-//                    if (mainFragment.selectedPosition == mainFragment.tvListViewModel.maxNum.size - 1) {
-////                        mainFragment.setSelectedPosition(0, false)
-//                        hideMainFragment()
-//                        return false
-//                    }
+            if (SP.channelReversal) prev() else next()
         }
     }
 
@@ -372,7 +319,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         doubleBackToExitPressedOnce = true
         Toast.makeText(this, "再按一次退出", Toast.LENGTH_SHORT).show()
 
-        Handler(Looper.getMainLooper()).postDelayed({
+        handler.postDelayed({
             doubleBackToExitPressedOnce = false
         }, 2000)
     }
@@ -380,53 +327,9 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         Log.i(TAG, "keyCode $keyCode, event $event")
         when (keyCode) {
-            KeyEvent.KEYCODE_0 -> {
-                showChannel("0")
-                return true
-            }
-
-            KeyEvent.KEYCODE_1 -> {
-                showChannel("1")
-                return true
-            }
-
-            KeyEvent.KEYCODE_2 -> {
-                showChannel("2")
-                return true
-            }
-
-            KeyEvent.KEYCODE_3 -> {
-                showChannel("3")
-                return true
-            }
-
-            KeyEvent.KEYCODE_4 -> {
-                showChannel("4")
-                return true
-            }
-
-            KeyEvent.KEYCODE_5 -> {
-                showChannel("5")
-                return true
-            }
-
-            KeyEvent.KEYCODE_6 -> {
-                showChannel("6")
-                return true
-            }
-
-            KeyEvent.KEYCODE_7 -> {
-                showChannel("7")
-                return true
-            }
-
-            KeyEvent.KEYCODE_8 -> {
-                showChannel("8")
-                return true
-            }
-
-            KeyEvent.KEYCODE_9 -> {
-                showChannel("9")
+            // 遥控器数字键 0~9：选台号，由 ChannelFragment 组合两位数后切台
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> {
+                showChannel((keyCode - KeyEvent.KEYCODE_0).toString())
                 return true
             }
 
@@ -518,8 +421,6 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
         return super.onKeyDown(keyCode, event)
     }
-
-    private fun getAppSignature() = this.appSignature
 
     override fun onStart() {
         Log.i(TAG, "onStart")

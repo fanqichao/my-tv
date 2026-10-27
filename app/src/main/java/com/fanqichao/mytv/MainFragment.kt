@@ -131,14 +131,6 @@ class MainFragment : VerticalGridSupportFragment() {
         (activity as MainActivity).fragmentReady("MainFragment")
     }
 
-    fun toLastPosition() {
-        setSelectedPosition(tvListViewModel.size() - 1)
-    }
-
-    fun toFirstPosition() {
-        setSelectedPosition(0)
-    }
-
     private fun loadRows() {
         // 面板只占屏幕左侧一条，卡片宽度按面板宽度自适应，避免超出被裁切
         val dm = resources.displayMetrics
@@ -176,36 +168,6 @@ class MainFragment : VerticalGridSupportFragment() {
         }
         tvListViewModel.setItemPosition(itemPosition)
         setSelectedPosition(itemPosition)
-    }
-
-    fun prevSource() {
-        view?.post {
-            val tvViewModel = tvListViewModel.getTVViewModel(itemPosition)
-            if (tvViewModel != null) {
-                if (tvViewModel.videoUrl.value!!.size > 1) {
-                    val videoIndex = tvViewModel.videoIndex.value?.minus(1)
-                    if (videoIndex == -1) {
-                        tvViewModel.setVideoIndex(tvViewModel.videoUrl.value!!.size - 1)
-                    }
-                    tvViewModel.changed()
-                }
-            }
-        }
-    }
-
-    fun nextSource() {
-        view?.post {
-            val tvViewModel = tvListViewModel.getTVViewModel(itemPosition)
-            if (tvViewModel != null) {
-                if (tvViewModel.videoUrl.value!!.size > 1) {
-                    val videoIndex = tvViewModel.videoIndex.value?.plus(1)
-                    if (videoIndex == tvViewModel.videoUrl.value!!.size) {
-                        tvViewModel.setVideoIndex(0)
-                    }
-                    tvViewModel.changed()
-                }
-            }
-        }
     }
 
     private fun setupEventListeners() {
