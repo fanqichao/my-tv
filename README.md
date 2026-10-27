@@ -75,11 +75,11 @@
 ```kotlin
 "分组名" to listOf(
     TV(
-        0,                                        		// id 由程序自动分配，填 0 即可
-        "CCTV1综合",                               	   // 频道名称
-        videoUrl = listOf("http://你的源/123456"),  	  // 播放地址（支持 m3u8 / 直连流）
-        logo = "http://台标图片地址.png",            		// 台标（可留空）
-        programType = ProgramType.DIRECT,          	    // 直连播放，不走接口
+        0,                                        	// id 由程序自动分配，填 0 即可
+        "CCTV1综合",                               	// 频道名称
+        videoUrl = listOf("http://你的源/123456"),  	// 播放地址（支持 m3u8 / 直连流）
+        logo = "http://台标图片地址.png",            	// 台标（可留空）
+        programType = ProgramType.DIRECT,          	// 直连播放，不走接口
     ),
         // ...更多频道
 ),
