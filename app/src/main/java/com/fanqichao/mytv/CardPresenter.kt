@@ -42,17 +42,17 @@ class CardPresenter(
         boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
     }
 
-    /** 选中态：黑色描边，未选中无任何描边 */
+    /** 选中态：白色描边，未选中无任何描边 */
     private fun applySelectionState(card: View, selected: Boolean) {
         // 必须用 foreground：background 会被铺满的台标图盖住，看不到边框
         card.foreground = if (selected) selectedBorder else null
     }
 
-    /** 黑色描边：透明底 + 黑框，圆角小弧度 */
+    /** 白色描边：透明底 + 白框，加粗，圆角小弧度 */
     private val selectedBorder: android.graphics.drawable.GradientDrawable by lazy {
         android.graphics.drawable.GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            setStroke((3f * density).toInt().coerceAtLeast(3), Color.BLACK)
+            setStroke((4f * density).toInt().coerceAtLeast(4), Color.WHITE)
             cornerRadius = 4f * density
         }
     }
@@ -128,9 +128,12 @@ class CardPresenter(
         val gridView = grid ?: return
         val loc = IntArray(2)
         card.getLocationInWindow(loc)
+        // 目标位置：离屏幕左边留一点距离，不要完全贴边
+        val targetX = (LEFT_OFFSET_DP * density).toInt()
         // 自校正：按当前实际位置微调，误差超过 2px 才动，避免来回抖动
-        if (kotlin.math.abs(loc[0]) >= 2) {
-            gridView.translationX -= loc[0].toFloat()
+        val delta = loc[0] - targetX
+        if (kotlin.math.abs(delta) >= 2) {
+            gridView.translationX -= delta.toFloat()
         }
     }
 
@@ -172,5 +175,8 @@ class CardPresenter(
 
         // 台标原图 507x338，约 3:2
         private const val LOGO_ASPECT = 507f / 338f
+
+        /** 整列台标离屏幕左边的距离（dp）：完全贴边会显得局促，往右挪一点 */
+        private const val LEFT_OFFSET_DP = 4f
     }
 }
