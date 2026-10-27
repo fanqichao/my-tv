@@ -3,6 +3,7 @@ package com.fanqichao.mytv
 import android.os.Bundle
 import android.util.Log
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
@@ -47,14 +48,7 @@ class MainFragment : VerticalGridSupportFragment() {
      *  切台回弹的 setSelectedPosition 也不能执行（会把列表拽回原位置） */
     private var touchScrolling = false
 
-    private var touchDownX = 0f
-
-    private var touchDownY = 0f
-
     private val touchSlop: Int by lazy { ViewConfiguration.get(requireContext()).scaledTouchSlop }
-
-    /** 触屏滚过、需要把选中位置对齐到第一个可见条目 */
-    private var pendingAlignToVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.i(TAG, "onCreate")
@@ -93,55 +87,57 @@ class MainFragment : VerticalGridSupportFragment() {
             // 放大的条目允许画到网格边界外，避免上下两端被裁掉
             grid.clipChildren = false
             grid.clipToPadding = false
-            // 触屏滚动时选中项不变，ItemViewSelectedListener 里的 mainActive() 不会触发，
-            // 10s 自动隐藏计时器到期会把面板整个藏掉（表现为"滑一屏就再也滑不下去"）。
-            // 这里在每次触摸时重置计时器；返回 false 不拦截事件，不影响正常滚动。
-            grid.setOnTouchListener { _, event ->
+            // Leanback 自带的触摸处理在"聚焦式网格"上问题很多：
+            // 抬手常被误判成点击（误切台、面板被收起），滚动结束时又会按焦点把列表拽回原位置
+            //（表现为"滑几屏焦点又回来了"）。这里直接拦下全部触摸事件，自己实现拖拽滚动与轻点切台。
+            val velocityTracker = VelocityTracker.obtain()
+            var downY = 0f
+            var lastY = 0f
+            var moved = false
+            grid.setOnTouchInterceptListener { event ->
                 (activity as? MainActivity)?.mainActive()
-                Log.d(TAG, "grid touch action=${event.actionMasked} x=${event.x} y=${event.y} scrolling=$touchScrolling")
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        touchDownX = event.x
-                        touchDownY = event.y
+                        downY = event.y
+                        lastY = event.y
+                        moved = false
                         touchScrolling = false
+                        velocityTracker.clear()
+                        velocityTracker.addMovement(event)
+                        grid.stopScroll()
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        if (kotlin.math.abs(event.y - touchDownY) > touchSlop ||
-                            kotlin.math.abs(event.x - touchDownX) > touchSlop
-                        ) {
+                        velocityTracker.addMovement(event)
+                        if (!moved && kotlin.math.abs(event.y - downY) > touchSlop) {
+                            moved = true
                             touchScrolling = true
-                            pendingAlignToVisible = true
                         }
+                        if (moved) {
+                            grid.scrollBy(0, (lastY - event.y).toInt())
+                        }
+                        lastY = event.y
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        // 手指抬起后 Leanback 可能把这次手势当成点击派发，
-                        // 延后一点恢复，保证这一次的点击被忽略
-                        if (touchScrolling) {
-                            grid.postDelayed({ touchScrolling = false }, 400)
+                        velocityTracker.addMovement(event)
+                        if (moved) {
+                            // 惯性滑动，松手后还能再滑一段，手感更接近原生列表
+                            velocityTracker.computeCurrentVelocity(1000, 8000f)
+                            val velocityY = velocityTracker.yVelocity
+                            if (kotlin.math.abs(velocityY) > 300f) {
+                                grid.fling(0, (-velocityY).toInt())
+                            }
+                            // 滚动结束后把"选中/焦点"对齐到当前可见的第一个条目，
+                            // 否则列表一重新布局就会按老焦点跳回去
+                            grid.postDelayed({ syncSelectionWhenIdle() }, 200)
+                            grid.postDelayed({ touchScrolling = false }, 450)
+                        } else if (event.actionMasked == MotionEvent.ACTION_UP) {
+                            confirmItemAt(event.x, event.y)
                         }
                     }
                 }
-                false
+                // 返回 true = 事件被吞掉，不再交给 Leanback 的网格处理
+                true
             }
-            // 触屏滚完后，Leanback 的"选中/焦点"仍留在原来的条目上，
-            // 这次手势结束时它会用焦点把列表滚回去（表现为滑了几屏焦点又回来了）。
-            // 滚动停止时把选中位置对齐到第一个可见条目，焦点随之前移，列表就不会回弹。
-            grid.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                    if (newState != RecyclerView.SCROLL_STATE_IDLE || !pendingAlignToVisible) {
-                        return
-                    }
-                    pendingAlignToVisible = false
-                    val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                    // 优先对齐到第一个完整可见的条目，避免选中一个被上边缘切掉一半的卡片
-                    val first = lm.findFirstCompletelyVisibleItemPosition()
-                        .takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition()
-                    if (first >= 0 && first != grid.selectedPosition) {
-                        Log.i(TAG, "align selection to first visible $first")
-                        grid.setSelectedPosition(first)
-                    }
-                }
-            })
         }
 
         setupEventListeners()
@@ -296,6 +292,43 @@ class MainFragment : VerticalGridSupportFragment() {
                 confirmSelect()
             }
         }
+    }
+
+    /** 等惯性滑动停下来再对齐，滑动过程中对齐会被后续滚动覆盖 */
+    private fun syncSelectionWhenIdle(attempt: Int = 0) {
+        val grid = findGridView(view) ?: return
+        if (grid.scrollState != RecyclerView.SCROLL_STATE_IDLE && attempt < 10) {
+            grid.postDelayed({ syncSelectionWhenIdle(attempt + 1) }, 200)
+            return
+        }
+        syncSelectionToVisible()
+    }
+
+    /**
+     * 把选中/焦点对齐到当前可见的第一个条目。
+     * 触屏滚动时 Leanback 的选中位置不会跟着动，列表一重新布局就会按老焦点滚回去
+     *（用户看到的现象就是"滑了几屏焦点又回来了"），滚动结束后调用这里把它对齐。
+     */
+    private fun syncSelectionToVisible() {
+        val grid = findGridView(view) ?: return
+        val lm = grid.layoutManager as? LinearLayoutManager ?: return
+        // 优先取第一个完整可见的条目，避免选中一个被上边缘切掉一半的卡片
+        val first = lm.findFirstCompletelyVisibleItemPosition()
+            .takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition()
+        if (first >= 0 && first != grid.selectedPosition) {
+            Log.i(TAG, "sync selection to $first")
+            grid.setSelectedPosition(first)
+        }
+    }
+
+    /** 轻点某个条目 = 切到该频道并收起面板 */
+    private fun confirmItemAt(x: Float, y: Float) {
+        val grid = findGridView(view) as? RecyclerView ?: return
+        val child = grid.findChildViewUnder(x, y) ?: return
+        val position = grid.getChildAdapterPosition(child)
+        if (position < 0) return
+        tvListViewModel.setItemPositionCurrent(position)
+        confirmSelect()
     }
 
     /**
