@@ -18,7 +18,6 @@ import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
 import androidx.leanback.widget.VerticalGridPresenter
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.fanqichao.mytv.api.YSP
 import com.fanqichao.mytv.models.ProgramType
@@ -75,11 +74,6 @@ class MainFragment : VerticalGridSupportFragment() {
 
         loadRows()
 
-        view?.setOnTouchListener { _, event ->
-            Log.d(TAG, "root touch action=${event.actionMasked} x=${event.x} y=${event.y}")
-            false
-        }
-
         // 收紧频道卡片的上下间距，默认间距太大，一屏显示不了几个台；
         // 左右内边距清零，让卡片贴靠面板左侧
         view?.post {
@@ -101,7 +95,6 @@ class MainFragment : VerticalGridSupportFragment() {
             var lastY = 0f
             var moved = false
             grid.setOnTouchInterceptListener { event ->
-                Log.d(TAG, "grid intercept action=${event.actionMasked} y=${event.y}")
                 (activity as? MainActivity)?.mainActive()
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
@@ -120,19 +113,17 @@ class MainFragment : VerticalGridSupportFragment() {
                             touchScrolling = true
                         }
                         if (moved) {
-                            val dy = (lastY - event.y).toInt()
-                            val before = (grid.layoutManager as? LinearLayoutManager)
-                                ?.findFirstVisibleItemPosition() ?: -1
-                            grid.scrollBy(0, dy)
-                            val after = (grid.layoutManager as? LinearLayoutManager)
-                                ?.findFirstVisibleItemPosition() ?: -1
-                            Log.d(TAG, "scrollBy $dy first $before -> $after enabled=${grid.isScrollEnabled} canScrollDown=${grid.canScrollVertically(1)} canScrollUp=${grid.canScrollVertically(-1)} scrollY=${grid.scrollY}")
+                            grid.scrollBy(0, (lastY - event.y).toInt())
                         }
                         lastY = event.y
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         velocityTracker.addMovement(event)
-                        if (moved) {
+                        // MOVE 事件可能被系统合并/丢弃，抬手时再用起止位移补判一次，
+                        // 否则一次滑动会被当成轻点，误切到顶部频道并把面板收起
+                        val wasScroll = moved ||
+                            kotlin.math.abs(event.y - downY) > touchSlop
+                        if (wasScroll) {
                             // 惯性滑动，松手后还能再滑一段，手感更接近原生列表
                             velocityTracker.computeCurrentVelocity(1000, 8000f)
                             val velocityY = velocityTracker.yVelocity
@@ -324,13 +315,19 @@ class MainFragment : VerticalGridSupportFragment() {
      */
     private fun syncSelectionToVisible() {
         val grid = findGridView(view) ?: return
-        val lm = grid.layoutManager as? LinearLayoutManager ?: return
-        // 优先取第一个完整可见的条目，避免选中一个被上边缘切掉一半的卡片
-        val first = lm.findFirstCompletelyVisibleItemPosition()
-            .takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition()
-        if (first >= 0 && first != grid.selectedPosition) {
-            Log.i(TAG, "sync selection to $first")
-            grid.setSelectedPosition(first)
+        if (grid.childCount == 0) return
+        // Leanback 的 GridLayoutManager 不是 LinearLayoutManager，只能按子 View 的位置算
+        var target = grid.getChildAdapterPosition(grid.getChildAt(0))
+        for (i in 0 until grid.childCount) {
+            val child = grid.getChildAt(i)
+            if (child.top >= 0) {
+                target = grid.getChildAdapterPosition(child)
+                break
+            }
+        }
+        if (target >= 0 && target != grid.selectedPosition) {
+            Log.i(TAG, "sync selection to $target")
+            grid.setSelectedPosition(target)
         }
     }
 
