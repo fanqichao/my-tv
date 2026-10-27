@@ -205,6 +205,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     }
 
     private val hideMain = Runnable {
+        Log.i(TAG, "hideMain: 面板到时自动隐藏")
         if (!mainFragment.isHidden) {
             supportFragmentManager.beginTransaction().hide(mainFragment).commit()
         }

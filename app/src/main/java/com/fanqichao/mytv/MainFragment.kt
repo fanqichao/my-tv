@@ -76,6 +76,13 @@ class MainFragment : VerticalGridSupportFragment() {
             // 放大的条目允许画到网格边界外，避免上下两端被裁掉
             grid.clipChildren = false
             grid.clipToPadding = false
+            // 触屏滚动时选中项不变，ItemViewSelectedListener 里的 mainActive() 不会触发，
+            // 10s 自动隐藏计时器到期会把面板整个藏掉（表现为"滑一屏就再也滑不下去"）。
+            // 这里在每次触摸时重置计时器；返回 false 不拦截事件，不影响正常滚动。
+            grid.setOnTouchListener { _, _ ->
+                (activity as? MainActivity)?.mainActive()
+                false
+            }
         }
 
         setupEventListeners()
