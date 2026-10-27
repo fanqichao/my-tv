@@ -325,7 +325,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        Log.i(TAG, "keyCode $keyCode, event $event")
+        Log.d(TAG, "keyCode $keyCode")
         when (keyCode) {
             // 遥控器数字键 0~9：选台号，由 ChannelFragment 组合两位数后切台
             in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> {
