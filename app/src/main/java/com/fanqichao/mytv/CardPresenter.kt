@@ -16,7 +16,7 @@ import com.fanqichao.mytv.models.TVViewModel
  *
  * - 不使用 ImageCardView：它会在焦点变化时重置自己的半透明背景
  * - 卡片尺寸严格按台标原图比例（507x338 ≈ 3:2）
- * - 选中态 = 黑色描边，由 Fragment 选中回调驱动，不依赖 Leanback 焦点事件（快速滚动不丢效）
+ * - 选中态 = 未选中项盖灰色半透明蒙版、选中项透亮，由 Fragment 选中回调驱动，不依赖 Leanback 焦点事件（快速滚动不丢效）
  */
 class CardPresenter(
     private val context: Context,
@@ -38,35 +38,19 @@ class CardPresenter(
         //（快速滚动时新条目先拿到焦点后绑定，焦点事件会丢，Leanback 的高亮就不生效了）
         boundViews.forEach { (tv, view) -> applySelectionState(view, tv === item) }
         // 兜底：某些 leanback 版本会给未选中项重新压暗（灰色蒙版），
-        // 这里在选中变化后再清一次，保证只有黑框高亮、没有变灰
+        // 这里在选中变化后再清一次，保证只有蒙版高亮、没有 Leanback 自带的变灰
         boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
     }
 
-    /** 选中态：白框外再加一圈细黑描边（双框，无圆角），未选中无任何描边 */
+    /** 未选中项盖灰色半透明蒙版，选中项不加蒙版（不随背景颜色变化的统一高亮方式） */
     private fun applySelectionState(card: View, selected: Boolean) {
-        // 必须用 foreground：background 会被铺满的台标图盖住，看不到边框
-        card.foreground = if (selected) selectedBorder else null
+        // 必须用 foreground：background 会被铺满的台标图盖住，蒙版会看不到
+        card.foreground = if (selected) null else dimOverlay
     }
 
-    /** 双框：内圈 4dp 白色 + 外圈 2dp 黑色，直角 */
-    private val selectedBorder: android.graphics.drawable.Drawable by lazy {
-        val white = (4f * density).toInt().coerceAtLeast(4)
-        val black = (2f * density).toInt().coerceAtLeast(2)
-        val outer = android.graphics.drawable.GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            // 外圈只要露出黑边那一圈，内侧部分会被白圈盖住；
-            // 宽度必须正好等于 黑边 + 白框，多出来就会在白框内侧再露出一条黑线（变成三框）
-            setStroke(white + black, Color.BLACK)
-            cornerRadius = 0f
-        }
-        val inner = android.graphics.drawable.GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-            setStroke(white, Color.WHITE)
-            cornerRadius = 0f
-        }
-        android.graphics.drawable.LayerDrawable(arrayOf(outer, inner)).apply {
-            setLayerInset(1, black, black, black, black)
-        }
+    /** 灰色半透明蒙版，盖住整张台标 */
+    private val dimOverlay: android.graphics.drawable.Drawable by lazy {
+        android.graphics.drawable.ColorDrawable(Color.argb(0x99, 0x33, 0x33, 0x33))
     }
 
     private val density: Float get() = context.resources.displayMetrics.density
