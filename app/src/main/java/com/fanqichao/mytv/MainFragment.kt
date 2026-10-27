@@ -92,6 +92,7 @@ class MainFragment : VerticalGridSupportFragment() {
             // 放大的条目允许画到网格边界外，避免上下两端被裁掉
             grid.clipChildren = false
             grid.clipToPadding = false
+            grid.isScrollEnabled = true
             // Leanback 自带的触摸处理在"聚焦式网格"上问题很多：
             // 抬手常被误判成点击（误切台、面板被收起），滚动结束时又会按焦点把列表拽回原位置
             //（表现为"滑几屏焦点又回来了"）。这里直接拦下全部触摸事件，自己实现拖拽滚动与轻点切台。
@@ -119,7 +120,13 @@ class MainFragment : VerticalGridSupportFragment() {
                             touchScrolling = true
                         }
                         if (moved) {
-                            grid.scrollBy(0, (lastY - event.y).toInt())
+                            val dy = (lastY - event.y).toInt()
+                            val before = (grid.layoutManager as? LinearLayoutManager)
+                                ?.findFirstVisibleItemPosition() ?: -1
+                            grid.scrollBy(0, dy)
+                            val after = (grid.layoutManager as? LinearLayoutManager)
+                                ?.findFirstVisibleItemPosition() ?: -1
+                            Log.d(TAG, "scrollBy $dy first $before -> $after enabled=${grid.isScrollEnabled} canScrollDown=${grid.canScrollVertically(1)} canScrollUp=${grid.canScrollVertically(-1)} scrollY=${grid.scrollY}")
                         }
                         lastY = event.y
                     }
