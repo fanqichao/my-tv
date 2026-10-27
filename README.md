@@ -75,13 +75,13 @@
 ```kotlin
 "分组名" to listOf(
     TV(
-        0,                                        // id 由程序自动分配，填 0 即可
-        "CCTV1综合",                               // 频道名称
-        videoUrl = listOf("http://你的源/123456"),  // 播放地址（支持 m3u8 / 直连流）
-        logo = "http://台标图片地址.png",            // 台标（可留空）
-        programType = ProgramType.DIRECT,          // 直连播放，不走接口
+        0,                                        		// id 由程序自动分配，填 0 即可
+        "CCTV1综合",                               	   // 频道名称
+        videoUrl = listOf("http://你的源/123456"),  	  // 播放地址（支持 m3u8 / 直连流）
+        logo = "http://台标图片地址.png",            		// 台标（可留空）
+        programType = ProgramType.DIRECT,          	    // 直连播放，不走接口
     ),
-    // ...更多频道
+        // ...更多频道
 ),
 ```
 
@@ -160,3 +160,4 @@ A：需要。频道表编译进 APK，改源必须重新构建安装。
 <p align="center">
   <img src="./screenshots/appreciate.jpeg" width="420" alt="赞赏">
 </p>
+

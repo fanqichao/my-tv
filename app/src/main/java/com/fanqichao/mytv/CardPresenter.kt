@@ -54,8 +54,9 @@ class CardPresenter(
         val black = (2f * density).toInt().coerceAtLeast(2)
         val outer = android.graphics.drawable.GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            // 外圈要盖住白圈外的部分，宽度 = 白框 + 两侧黑边
-            setStroke(white + 2 * black, Color.BLACK)
+            // 外圈只要露出黑边那一圈，内侧部分会被白圈盖住；
+            // 宽度必须正好等于 黑边 + 白框，多出来就会在白框内侧再露出一条黑线（变成三框）
+            setStroke(white + black, Color.BLACK)
             cornerRadius = 0f
         }
         val inner = android.graphics.drawable.GradientDrawable().apply {
