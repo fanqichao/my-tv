@@ -42,18 +42,29 @@ class CardPresenter(
         boundViews.values.forEach { card -> card.post { clearShadowOverlay(card) } }
     }
 
-    /** 选中态：白色描边，未选中无任何描边 */
+    /** 选中态：白框外再加一圈细黑描边（双框，无圆角），未选中无任何描边 */
     private fun applySelectionState(card: View, selected: Boolean) {
         // 必须用 foreground：background 会被铺满的台标图盖住，看不到边框
         card.foreground = if (selected) selectedBorder else null
     }
 
-    /** 白色描边：透明底 + 白框，加粗，圆角小弧度 */
-    private val selectedBorder: android.graphics.drawable.GradientDrawable by lazy {
-        android.graphics.drawable.GradientDrawable().apply {
+    /** 双框：内圈 4dp 白色 + 外圈 2dp 黑色，直角 */
+    private val selectedBorder: android.graphics.drawable.Drawable by lazy {
+        val white = (4f * density).toInt().coerceAtLeast(4)
+        val black = (2f * density).toInt().coerceAtLeast(2)
+        val outer = android.graphics.drawable.GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            setStroke((4f * density).toInt().coerceAtLeast(4), Color.WHITE)
-            cornerRadius = 4f * density
+            // 外圈要盖住白圈外的部分，宽度 = 白框 + 两侧黑边
+            setStroke(white + 2 * black, Color.BLACK)
+            cornerRadius = 0f
+        }
+        val inner = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            setStroke(white, Color.WHITE)
+            cornerRadius = 0f
+        }
+        android.graphics.drawable.LayerDrawable(arrayOf(outer, inner)).apply {
+            setLayerInset(1, black, black, black, black)
         }
     }
 
