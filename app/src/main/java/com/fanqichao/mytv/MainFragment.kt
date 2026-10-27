@@ -2,7 +2,9 @@ package com.fanqichao.mytv
 
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.leanback.app.VerticalGridSupportFragment
@@ -38,6 +40,16 @@ class MainFragment : VerticalGridSupportFragment() {
     private var lastVideoUrl = ""
 
     private var lastConfirmTime = 0L
+
+    /** 触屏滚动中：此时抬手不能被当成点击（否则会误切台、面板被收起），
+     *  切台回弹的 setSelectedPosition 也不能执行（会把列表拽回原位置） */
+    private var touchScrolling = false
+
+    private var touchDownX = 0f
+
+    private var touchDownY = 0f
+
+    private val touchSlop: Int by lazy { ViewConfiguration.get(requireContext()).scaledTouchSlop }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.i(TAG, "onCreate")
@@ -79,8 +91,29 @@ class MainFragment : VerticalGridSupportFragment() {
             // 触屏滚动时选中项不变，ItemViewSelectedListener 里的 mainActive() 不会触发，
             // 10s 自动隐藏计时器到期会把面板整个藏掉（表现为"滑一屏就再也滑不下去"）。
             // 这里在每次触摸时重置计时器；返回 false 不拦截事件，不影响正常滚动。
-            grid.setOnTouchListener { _, _ ->
+            grid.setOnTouchListener { _, event ->
                 (activity as? MainActivity)?.mainActive()
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        touchDownX = event.x
+                        touchDownY = event.y
+                        touchScrolling = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (kotlin.math.abs(event.y - touchDownY) > touchSlop ||
+                            kotlin.math.abs(event.x - touchDownX) > touchSlop
+                        ) {
+                            touchScrolling = true
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        // 手指抬起后 Leanback 可能把这次手势当成点击派发，
+                        // 延后一点恢复，保证这一次的点击被忽略
+                        if (touchScrolling) {
+                            grid.postDelayed({ touchScrolling = false }, 400)
+                        }
+                    }
+                }
                 false
             }
         }
@@ -116,12 +149,17 @@ class MainFragment : VerticalGridSupportFragment() {
                             tvViewModel.let { Request.fetchData(it) }
                         }
                         (activity as? MainActivity)?.showInfoFragment(tvViewModel)
-                        setSelectedPosition(tvViewModel.getRowPosition())
+                        // 触屏滚动时不要回弹：否则会把手滑了几屏的列表拽回当前频道
+                        if (!touchScrolling) {
+                            setSelectedPosition(tvViewModel.getRowPosition())
+                        }
                     } else {
                         if (check(tvViewModel)) {
                             (activity as? MainActivity)?.play(tvViewModel)
                             (activity as? MainActivity)?.showInfoFragment(tvViewModel)
-                            setSelectedPosition(tvViewModel.getRowPosition())
+                            if (!touchScrolling) {
+                                setSelectedPosition(tvViewModel.getRowPosition())
+                            }
                         }
                     }
                 }
@@ -223,6 +261,11 @@ class MainFragment : VerticalGridSupportFragment() {
             row: Row?
         ) {
             if (item is TVViewModel) {
+                // 滚动过程中的抬手会被 Leanback 误派发成点击：直接忽略，避免误切台/收面板
+                if (touchScrolling) {
+                    Log.i(TAG, "ignore click while scrolling")
+                    return
+                }
                 tvListViewModel.setItemPositionCurrent(item.getRowPosition())
                 confirmSelect()
             }
