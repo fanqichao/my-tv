@@ -17,6 +17,8 @@ import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
 import androidx.leanback.widget.VerticalGridPresenter
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.fanqichao.mytv.api.YSP
 import com.fanqichao.mytv.models.ProgramType
 import com.fanqichao.mytv.models.TVListViewModel
@@ -50,6 +52,9 @@ class MainFragment : VerticalGridSupportFragment() {
     private var touchDownY = 0f
 
     private val touchSlop: Int by lazy { ViewConfiguration.get(requireContext()).scaledTouchSlop }
+
+    /** 触屏滚过、需要把选中位置对齐到第一个可见条目 */
+    private var pendingAlignToVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.i(TAG, "onCreate")
@@ -105,6 +110,7 @@ class MainFragment : VerticalGridSupportFragment() {
                             kotlin.math.abs(event.x - touchDownX) > touchSlop
                         ) {
                             touchScrolling = true
+                            pendingAlignToVisible = true
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -117,6 +123,25 @@ class MainFragment : VerticalGridSupportFragment() {
                 }
                 false
             }
+            // 触屏滚完后，Leanback 的"选中/焦点"仍留在原来的条目上，
+            // 这次手势结束时它会用焦点把列表滚回去（表现为滑了几屏焦点又回来了）。
+            // 滚动停止时把选中位置对齐到第一个可见条目，焦点随之前移，列表就不会回弹。
+            grid.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    if (newState != RecyclerView.SCROLL_STATE_IDLE || !pendingAlignToVisible) {
+                        return
+                    }
+                    pendingAlignToVisible = false
+                    val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                    // 优先对齐到第一个完整可见的条目，避免选中一个被上边缘切掉一半的卡片
+                    val first = lm.findFirstCompletelyVisibleItemPosition()
+                        .takeIf { it >= 0 } ?: lm.findFirstVisibleItemPosition()
+                    if (first >= 0 && first != grid.selectedPosition) {
+                        Log.i(TAG, "align selection to first visible $first")
+                        grid.setSelectedPosition(first)
+                    }
+                }
+            })
         }
 
         setupEventListeners()
