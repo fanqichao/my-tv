@@ -65,7 +65,7 @@
 
 ![频道列表](./screenshots/img_2.png)
 ![播放界面](./screenshots/img_1.png)
-
+![播放界面](./screenshots/img_3.png)
 ---
 
 ## 自定义直播源
