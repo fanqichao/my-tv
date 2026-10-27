@@ -254,6 +254,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         if (event != null) {
+            Log.d(TAG, "activity touch action=${event.actionMasked} x=${event.x} y=${event.y}")
             gestureDetector.onTouchEvent(event)
         }
         return super.onTouchEvent(event)

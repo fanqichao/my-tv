@@ -93,6 +93,7 @@ class MainFragment : VerticalGridSupportFragment() {
             // 这里在每次触摸时重置计时器；返回 false 不拦截事件，不影响正常滚动。
             grid.setOnTouchListener { _, event ->
                 (activity as? MainActivity)?.mainActive()
+                Log.d(TAG, "grid touch action=${event.actionMasked} x=${event.x} y=${event.y} scrolling=$touchScrolling")
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         touchDownX = event.x
@@ -300,6 +301,7 @@ class MainFragment : VerticalGridSupportFragment() {
             rowViewHolder: RowPresenter.ViewHolder?, row: Row?
         ) {
             if (item is TVViewModel) {
+                Log.d(TAG, "selected pos=${item.getRowPosition()} ${item.getTV().title}")
                 tvListViewModel.setItemPositionCurrent(item.getRowPosition())
                 // 驱动卡片高亮（卡片自身拿不到焦点状态）
                 cardPresenter?.setSelected(item)
